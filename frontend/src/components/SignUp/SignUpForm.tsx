@@ -45,16 +45,14 @@ const SignUp = ({ onSwitchToLogin }: { onSwitchToLogin: () => void }) => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
 
     if (!email || !username || !password) {
       setErrorMessage('Tous les champs sont requis.');
       return;
     }
 
-  
     const emailPattern = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/;
     if (!emailPattern.test(email)) {
       setErrorMessage('Veuillez entrer un email valide.');
@@ -66,12 +64,31 @@ const SignUp = ({ onSwitchToLogin }: { onSwitchToLogin: () => void }) => {
       return;
     }
 
-   
-    setErrorMessage('');
-    console.log('Inscription réussie!');
-    
- 
-    alert('Inscription réussie !'); 
+    // Création de l'utilisateur
+    const registerData = { email, username, password };
+
+    try {
+      const response = await fetch('http://localhost:8080/api/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(registerData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Impossible de s\'inscrire, veuillez réessayer.');
+      }
+
+      const data = await response.json();
+      console.log('Utilisateur inscrit:', data);
+
+      // Si l'inscription réussit, rediriger vers la page de connexion
+      alert('Inscription réussie !');
+      onSwitchToLogin();
+    } catch (error) {
+      setErrorMessage('Erreur lors de l\'inscription, veuillez réessayer.');
+    }
   };
 
   return (
@@ -115,6 +132,7 @@ const SignUp = ({ onSwitchToLogin }: { onSwitchToLogin: () => void }) => {
         </div>
         {errorMessage && <p className="text-red-500 text-sm">{errorMessage}</p>}
         <button
+          onClick={handleSubmit}
           type="submit"
           className="bg-blue-500 text-white p-3 rounded-md mt-4"
         >

@@ -45,7 +45,7 @@ class PostRepository extends ServiceEntityRepository
     public function findLatestPosts(int $limit = 10): array
     {
         return $this->createQueryBuilder('p')
-            ->orderBy('p.createdAt', 'DESC')
+            ->orderBy('p.created_at', 'DESC')
             ->setMaxResults($limit)
             ->getQuery()
             ->getResult();
@@ -62,5 +62,15 @@ class PostRepository extends ServiceEntityRepository
             ->getQuery();
 
         return new Paginator($query);
+    }
+    public function findPaginatedPosts(int $page, int $limit): array
+    {
+        $query = $this->createQueryBuilder('p')
+            ->orderBy('p.created_at', 'DESC')
+            ->setFirstResult(($page - 1) * $limit)
+            ->setMaxResults($limit)
+            ->getQuery();
+
+        return $query->getResult();
     }
 }

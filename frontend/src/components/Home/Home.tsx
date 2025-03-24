@@ -19,22 +19,18 @@ const Home = () => {
         
         if (!response.ok) {
           throw new Error(`Erreur HTTP : ${response.status}`);
+
         }
     
         const data = await response.json();
-    
+    console.log(data); // Vérifie la structure de la réponse
       
     
-        // Vérifie que posts est une chaîne JSON et la transforme en tableau
-        if (data && typeof data.posts === 'string') {
-          const postsArray = JSON.parse(data.posts);
-          if (Array.isArray(postsArray)) {
-            setPosts(postsArray); // Si c'est un tableau après parse, on le met à jour
-          } else {
-            throw new Error('Les posts ne sont toujours pas sous la forme d\'un tableau après analyse');
-          }
+        // Vérifie que posts est un tableau
+        if (data && Array.isArray(data.posts)) {
+          setPosts(data.posts); // Met à jour les posts directement
         } else {
-          throw new Error('Les posts ne sont pas une chaîne JSON valide');
+          throw new Error('Les posts ne sont pas sous la forme d\'un tableau');
         }
       } catch (error) {
         setError('Erreur lors de la récupération des posts');

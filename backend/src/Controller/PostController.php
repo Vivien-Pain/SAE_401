@@ -22,20 +22,19 @@ class PostController extends AbstractController
         SerializerInterface $serializer
     ): JsonResponse {
         $page = max(1, (int) $request->query->get('page', 1));
-        $limit = (int) $request->query->get('limit', 10);
+        $limit = (int) $request->query->get('limit', 50);
 
-        $paginator = $postRepository->findAll($page, $limit);
+        $posts = $postRepository->findPaginatedPosts($page, $limit);
 
         // Convertir le tableau en JSON
         $data = [
-            'total' => count($paginator),
+            'total' => $postRepository->count([]),
             'page' => $page,
             'limit' => $limit,
-            'posts' => $serializer->serialize(iterator_to_array($paginator), 'json', ['groups' => 'post'])
+            'posts' => json_decode($serializer->serialize($posts, 'json', ['groups' => 'post']), true)
         ];
 
-        // Sérialiser le tableau complet avant de le passer à JsonResponse
-        return new JsonResponse(json_encode($data), JsonResponse::HTTP_OK, [], true);
+        return new JsonResponse($data, JsonResponse::HTTP_OK);
     }
 
 
@@ -74,6 +73,6 @@ class PostController extends AbstractController
         $serializedPost = $serializer->serialize($post, 'json', ['groups' => 'post']);
 
         // Renvoyer une réponse JSON avec l'objet post créé
-        return new JsonResponse($serializedPost, JsonResponse::HTTP_CREATED, [], true);
+        return new JsonResponse($serializedPost, JsonResponse::HTTP_CREATED, [], false);
     }
 }

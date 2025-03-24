@@ -1,10 +1,14 @@
+# config/packages/nelmio_cors.yaml
 nelmio_cors:
   defaults:
-    origin_regex: true
-    allow_origin: ["^https?://localhost(:[0-9]+)?$"]
-    allow_methods: ["GET", "OPTIONS", "POST", "PUT", "PATCH", "DELETE"]
+    allow_credentials: true # Autorise l'envoi des informations d'identification comme les cookies
+    allow_origin: ["http://localhost:8090"]
+    allow_methods: ["GET", "POST", "OPTIONS"]
     allow_headers: ["Content-Type", "Authorization"]
-    expose_headers: ["Link"]
     max_age: 3600
   paths:
-    "^/": null
+    "^/api/": # Applique CORS pour toutes les routes API
+      allow_origin: ["http://localhost:8090"]
+      allow_methods: ["GET", "POST", "OPTIONS"]
+      allow_headers: ["Content-Type", "Authorization"]
+      max_age: 3600
