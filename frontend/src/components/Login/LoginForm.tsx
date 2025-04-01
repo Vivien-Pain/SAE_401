@@ -9,17 +9,14 @@ const Login = ({ onSwitchToSignUp }: { onSwitchToSignUp: () => void }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
+  
     if (!email || !password) {
       setErrorMessage("Veuillez remplir tous les champs.");
       return;
     }
-
-    const loginData = {
-      email,
-      password,
-    };
-
+  
+    const loginData = { email, password };
+  
     try {
       const response = await fetch("http://localhost:8080/api/login", {
         method: "POST",
@@ -28,21 +25,26 @@ const Login = ({ onSwitchToSignUp }: { onSwitchToSignUp: () => void }) => {
         },
         body: JSON.stringify(loginData),
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Email ou mot de passe incorrect");
-      }
-
+  
       const data = await response.json();
-
+    
+  
+      if (!response.ok) {
+        throw new Error(data.error || "Email ou mot de passe incorrect");
+      }
+  
       if (data.token) {
-        // Assuming the backend handles token storage, just navigate to the home page
+     
+        localStorage.setItem("token", data.token);
+  
+      
+  
         navigate("/home");
       } else {
         setErrorMessage("Aucun token reçu, connexion échouée.");
       }
     } catch (error: any) {
+      console.error("Erreur de connexion :", error);
       setErrorMessage(error.message || "Impossible de se connecter. Veuillez réessayer.");
     }
   };
@@ -83,5 +85,3 @@ const Login = ({ onSwitchToSignUp }: { onSwitchToSignUp: () => void }) => {
 };
 
 export default Login;
-
-

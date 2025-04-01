@@ -6,6 +6,7 @@ use App\Entity\Post;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Doctrine\ORM\Tools\Pagination\Paginator;
+use App\Entity\User;
 
 /**
  * @extends ServiceEntityRepository<Post>
@@ -63,14 +64,24 @@ class PostRepository extends ServiceEntityRepository
 
         return new Paginator($query);
     }
-    public function findPaginatedPosts(int $page, int $limit): array
+
+    public function findPaginatedPosts(int $page, int $limit, ?User $user)
     {
-        $query = $this->createQueryBuilder('p')
+        $qb = $this->createQueryBuilder('p')
             ->orderBy('p.created_at', 'DESC')
             ->setFirstResult(($page - 1) * $limit)
-            ->setMaxResults($limit)
-            ->getQuery();
+            ->setMaxResults($limit);
 
-        return $query->getResult();
+        if ($user) {
+            $qb->andWhere('p.author != :user')
+                ->setParameter('user', $user->getId());
+        }
+
+        return $qb->getQuery()->getResult();
+    }
+    public function isTokenValid(string $token): bool
+    {
+        // Add your token validation logic here
+        return $this->token === $token; // Example logic
     }
 }

@@ -6,77 +6,110 @@ import Post from "../../ui/Post/Post";
 
 const Home = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [posts, setPosts] = useState<any[]>([]); // Assure-toi que posts est un tableau
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [posts, setPosts] = useState<any[]>([]);
+  const [user, setUser] = useState<{ username: string | null }>({ username: null });
 
-  // Récupérer les posts depuis l'API au montage du composant
   useEffect(() => {
-    const fetchPosts = async (page = 1) => {
-      setIsLoading(true); // Indicateur de chargement
-      try {
-        const response = await fetch(`http://localhost:8080/api/posts?page=${page}`);
-        
-        if (!response.ok) {
-          throw new Error(`Erreur HTTP : ${response.status}`);
+    const fetchUser = async () => {
+      const token = localStorage.getItem("token");
 
+      if (!token) {
+        console.error("Aucun token disponible");
+        return;
+      }
+
+      try {
+        const response = await fetch("http://localhost:8080/api/current_user", {
+          method: "GET",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`Erreur ${response.status}: ${await response.text()}`);
         }
-    
+
         const data = await response.json();
-    console.log(data); // Vérifie la structure de la réponse
-      
-    
-        // Vérifie que posts est un tableau
-        if (data && Array.isArray(data.posts)) {
-          setPosts(data.posts); // Met à jour les posts directement
-        } else {
-          throw new Error('Les posts ne sont pas sous la forme d\'un tableau');
-        }
+        setUser({ username: data.username });
       } catch (error) {
-        setError('Erreur lors de la récupération des posts');
-       
-      } finally {
-        setIsLoading(false); // Fin du chargement
+        console.error("Erreur lors de la récupération de l'utilisateur", error);
       }
     };
-    fetchPosts(); // Appel à la fonction pour récupérer les posts
-  }, []); // Exécution au montage du composant
 
-  const openPostForm = () => {
-    setIsModalOpen(true);
+    fetchUser();
+  }, []);
+
+  const fetchPosts = async () => {
+    try {
+      const response = await fetch("http://localhost:8080/api/posts");
+      if (!response.ok) {
+        throw new Error(`Erreur ${response.status}: ${await response.text()}`);
+      }
+      const data = await response.json();
+
+      setPosts(data.posts);
+    } catch (error) {
+      console.error("Erreur lors de la récupération des posts", error);
+    }
   };
 
-  const closePostForm = () => {
-    setIsModalOpen(false);
-  };
+  useEffect(() => {
+    fetchPosts();
+  }, []);
 
-  const handleNewPost = (content: string) => {
-    const newPost = {
-      id: posts.length + 1,  // Assumer que l'id est généré en fonction du nombre de posts
-      content,
-      created_at: new Date().toISOString(), // Utilise la date actuelle
-    };
-    setPosts([newPost, ...posts]); // Ajouter un nouveau post au début de la liste
+  const openPostForm = () => setIsModalOpen(true);
+  const closePostForm = () => setIsModalOpen(false);
+
+  // Fonction pour gérer la soumission d'un nouveau post
+  const handlePostSubmit = async (content: string) => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      console.error("Token non trouvé");
+      return;
+    }
+
+    try {
+      const response = await fetch("http://localhost:8080/api/posts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({ content }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erreur ${response.status}: ${await response.text()}`);
+      }
+
+      console.log("Post créé avec succès");
+      fetchPosts(); // Rafraîchir les posts après la création
+      closePostForm(); // Fermer le modal après la soumission
+    } catch (error) {
+      console.error("Erreur lors de la création du post", error);
+    }
   };
 
   return (
     <div className="flex flex-col h-screen items-center">
-      <Header />
+      <Header username={user.username || "Invité"} />
 
       <div className="flex-grow w-full max-w-md space-y-4 p-4 overflow-auto">
-        {/* Afficher l'indicateur de chargement */}
-        {isLoading && <p>Chargement des posts...</p>}
-
-        {/* Afficher l'erreur si elle existe */}
-        {error && <p className="text-red-500">{error}</p>}
-
-        {/* Affiche les posts récupérés */}
-        {Array.isArray(posts) && posts.length > 0 ? (
+        {posts.length > 0 ? (
           posts.map((post) => (
             <Post
-              key={post.id}  // Assure-toi d'ajouter une clé unique pour chaque élément
+              key={post.id}
               content={post.content}
               created_at={post.created_at}
+              likes={post.likes}
+              isLiked={post.isLiked}
+              id={post.id}
+              authorId={post.authorId}
+              authorUsername={post.authorUsername}
+              isFollowed={post.isFollowed}
+              
             />
           ))
         ) : (
@@ -85,14 +118,10 @@ const Home = () => {
       </div>
 
       <div className="fixed bottom-0 w-full">
-        <NavBar openPostForm={openPostForm} />
+        <NavBar openPostForm={openPostForm} username={user.username} profilePicture={null} onRefresh={fetchPosts} />
       </div>
 
-      <PostModal
-        isOpen={isModalOpen}
-        onClose={closePostForm}
-        onSubmit={handleNewPost}
-      />
+      <PostModal isOpen={isModalOpen} onClose={closePostForm} onSubmit={handlePostSubmit} />
     </div>
   );
 };

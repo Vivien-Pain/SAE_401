@@ -3,43 +3,43 @@ import { useState } from "react";
 interface PostModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (content: string) => void; // Cette fonction sera utilisée pour ajouter le post localement
+  onSubmit: (content: string) => void;
 }
 
-const PostModal = ({ isOpen, onClose, onSubmit }: PostModalProps) => {
+const PostModal = ({ isOpen, onClose, }: PostModalProps) => {
   const [content, setContent] = useState(""); // Contenu du post
-  const [isSubmitting, setIsSubmitting] = useState(false); // Pour éviter l'envoi multiple
+  const [isSubmitting, ] = useState(false); // Pour éviter l'envoi multiple
+  const [errorMessage, ] = useState(""); // Message d'erreur
+  
+
+
 
   // Fonction pour soumettre le post à l'API
   const handleSubmit = async () => {
-    if (content.trim()) {
-      setIsSubmitting(true);
-      try {
-        // Envoyer le contenu du post à l'API avec fetch
-        const response = await fetch("http://localhost:8080/api/posts", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json", // Indiquer que les données envoyées sont en JSON
-          },
-          body: JSON.stringify({ content }), // Le corps de la requête contient le texte du post
-        });
-
-        // Vérifier si la requête a réussi
-        if (response.ok) {
-          // Si la requête réussit, ajouter le post en local
-          onSubmit(content); // Ajouter le post localement dans le parent
-          setContent(""); // Réinitialiser le contenu du textarea
-          onClose(); // Fermer la modal
-        } else {
-          throw new Error("Erreur lors de la création du post.");
-        }
-      } catch (error) {
-     
-      } finally {
-        setIsSubmitting(false); // Rétablir l'état du bouton après la soumission
-      }
+    const token = localStorage.getItem("token"); // Vérifie si le token est bien stocké
+    if (!token) {
+        console.error("Token not found");
+        return;
     }
-  };
+
+    const response = await fetch("http://localhost:8080/api/posts", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`, // Envoi du token
+        },
+        body: JSON.stringify({ content: content }), // Envoi du contenu du post
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+        console.error("Erreur lors de la création du post :", data);
+    } else {
+        console.log("Post créé avec succès :", data);
+        onClose(); // Ferme le modal
+        window.location.href = "/home"; // Redirige vers la page d'accueil
+    }
+};
 
   if (!isOpen) return null;
 
@@ -53,6 +53,9 @@ const PostModal = ({ isOpen, onClose, onSubmit }: PostModalProps) => {
           value={content}
           onChange={(e) => setContent(e.target.value)}
         />
+        {errorMessage && (
+          <p className="text-red-500 text-sm">{errorMessage}</p>
+        )}
         <div className="flex justify-between items-center">
           <button
             onClick={onClose}
@@ -62,7 +65,7 @@ const PostModal = ({ isOpen, onClose, onSubmit }: PostModalProps) => {
           </button>
           <button
             onClick={handleSubmit}
-            disabled={isSubmitting} // Désactiver le bouton pendant le chargement
+            disabled={isSubmitting}
             className={`${
               isSubmitting ? "bg-gray-400" : "bg-blue-500"
             } text-white px-4 py-2 rounded-lg`}
