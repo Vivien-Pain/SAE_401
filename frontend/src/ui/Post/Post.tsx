@@ -9,7 +9,6 @@ interface PostProps {
   isLiked: boolean;     // Statut du like pour l'utilisateur connecté
   authorId: number;     // ID de l'auteur du post
   authorUsername: string; // Nom de l'auteur (pour affichage, si besoin)
-  isFollowed: boolean;  // Indique si l'utilisateur connecté suit l'auteur
 }
 
 const formatDate = (date: string) => {
@@ -25,11 +24,9 @@ const Post = ({
   likes,
   isLiked,
   authorId,
-  isFollowed,
 }: PostProps) => {
   const [likeCount, setLikeCount] = useState<number>(likes ?? 0);
   const [liked, setLiked] = useState(isLiked);
-  const [followed, setFollowed] = useState(isFollowed);
   const [authorProfile, setAuthorProfile] = useState<{ username: string, profilePicture: string } | null>(null);
 
   // Fonction pour récupérer les informations du profil de l'auteur
@@ -141,63 +138,6 @@ const Post = ({
     }
   };
 
-  // Gestion du suivi/désabonnement de l'auteur
-  const handleFollow = async () => {
-    if (authorId === Number(localStorage.getItem("userId"))) return;
-
-    const token = localStorage.getItem("token");
-    if (!token) {
-      console.error("Aucun token trouvé dans localStorage");
-      return;
-    }
-    const endpoint = `http://localhost:8080/api/users/${authorId}/follow`;
-    try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-      });
-      if (response.ok) {
-        console.log("Suivi effectué avec succès");
-        setFollowed(true);
-      } else {
-        console.error("Erreur lors du suivi :", await response.text());
-      }
-    } catch (error) {
-      console.error("Erreur lors de la requête de suivi :", error);
-    }
-  };
-
-  const handleUnfollow = async () => {
-    if (authorId === Number(localStorage.getItem("userId"))) return;
-
-    const token = localStorage.getItem("token");
-    if (!token) {
-      console.error("Aucun token trouvé dans localStorage");
-      return;
-    }
-    const endpoint = `http://localhost:8080/api/users/${authorId}/unfollow`;
-    try {
-      const response = await fetch(endpoint, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-      });
-      if (response.ok) {
-        console.log("Désabonnement effectué avec succès");
-        setFollowed(false);
-      } else {
-        console.error("Erreur lors du désabonnement :", await response.text());
-      }
-    } catch (error) {
-      console.error("Erreur lors de la requête de désabonnement :", error);
-    }
-  };
-
   return (
     <div className="bg-white border border-gray-300 rounded-lg p-4 shadow-sm w-full max-w-md">
       {/* Header: Author's profile and date */}
@@ -225,7 +165,7 @@ const Post = ({
       {/* Content */}
       <p className="text-gray-800 mb-4">{content}</p>
 
-      {/* Actions: Like and Follow */}
+      {/* Actions: Like */}
       <div className="flex items-center">
         {liked ? (
           <button onClick={handleUnlike} className="flex items-center mr-4">
@@ -238,19 +178,6 @@ const Post = ({
             <span className="ml-2">{likeCount ?? 0}</span>
           </button>
         )}
-
-        {Number(localStorage.getItem("userId")) !== authorId && (
-          followed ? (
-            <button onClick={handleUnfollow} className="px-4 py-2 bg-red-500 text-white rounded">
-              Ne plus suivre
-            </button>
-          ) : (
-            <button onClick={handleFollow} className="px-4 py-2 bg-blue-500 text-white rounded">
-              Suivre
-            </button>
-          )
-        )}
-  
       </div>
     </div>
   );

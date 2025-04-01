@@ -6,15 +6,15 @@ interface Post {
   id: number;
   content: string;
   created_at: string;
-  authorUsername: string; // Ajout de la propriété authorUsername
-  likes: number; // Ajout de la propriété likes
-  isLiked: boolean; // Ajout de la propriété isLiked
-  authorId: number; // Ajout de la propriété authorId
-  isFollowed: boolean; // Ajout de la propriété isFollowed
+  authorUsername: string;
+  likes: number;
+  isLiked: boolean;
+  authorId: number;
+  isFollowed: boolean;
 }
 
 interface UserProfile {
-  id: number; // Ajout de la propriété id
+  id: number;
   username: string;
   bio: string;
   profilePicture: string;
@@ -22,11 +22,13 @@ interface UserProfile {
   location: string;
   website: string;
   posts: Post[];
+  isFollowed: boolean; // Ajout de la propriété isFollowed
 }
 
 export default function ProfilePage() {
   const { username } = useParams<{ username: string }>();
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [isFollowed, setIsFollowed] = useState(false);
 
   useEffect(() => {
     if (!username) {
@@ -39,9 +41,40 @@ export default function ProfilePage() {
         if (!res.ok) throw new Error("Profil non trouvé");
         return res.json();
       })
-      .then((data) => setProfile(data))
+      .then((data) => {
+        setProfile(data);
+        setIsFollowed(data.isFollowed); // Initialiser l'état avec la valeur du backend
+      })
       .catch((error) => console.error("Erreur lors de la récupération du profil:", error));
   }, [username]);
+
+  const handleFollowToggle = () => {
+    if (!profile) return;
+  
+    const token = localStorage.getItem("token"); // Récupère le token depuis le localStorage
+  
+    if (!token) {
+      console.error("Aucun token trouvé, veuillez vous connecter.");
+      return;
+    }
+  
+    const url = `http://localhost:8080/api/profile/${username}/${isFollowed ? "unfollow" : "follow"}`;
+    const method = isFollowed ? "DELETE" : "POST"; // Utilisez POST pour les deux cas
+  
+    fetch(url, {
+      method,
+      headers: {
+        "Authorization": `Bearer ${token}`, // Ajout du token
+        "Content-Type": "application/json"
+      }
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("Erreur lors de la mise à jour du suivi");
+        setIsFollowed(!isFollowed);
+      })
+      .catch((error) => console.error("Erreur lors de la mise à jour du suivi:", error));
+  };
+  
 
   if (!profile) return <p>Chargement...</p>;
 
@@ -63,6 +96,14 @@ export default function ProfilePage() {
         <a href={profile.website} className="text-blue-500">
           {profile.website}
         </a>
+        <button
+          onClick={handleFollowToggle}
+          className={`mt-4 px-4 py-2 rounded ${
+            isFollowed ? "bg-red-500 text-white" : "bg-blue-500 text-white"
+          }`}
+        >
+          {isFollowed ? "Ne plus suivre" : "Suivre"}
+        </button>
       </div>
 
       <hr className="my-4" />
@@ -74,15 +115,15 @@ export default function ProfilePage() {
         ) : (
           profile.posts.map((post) => (
             <Post
-            key={post.id}
-            content={post.content}
-            created_at={post.created_at}
-            likes={post.likes}
-            isLiked={post.isLiked}
-            id={post.id}
-            authorId={post.authorId}
-            authorUsername={post.authorUsername}
-            isFollowed={post.isFollowed}
+              key={post.id}
+              content={post.content}
+              created_at={post.created_at}
+              likes={post.likes}
+              isLiked={post.isLiked}
+              id={post.id}
+              authorId={post.authorId}
+              authorUsername={post.authorUsername}
+              
             />
           ))
         )}

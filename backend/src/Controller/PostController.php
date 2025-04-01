@@ -38,11 +38,24 @@ class PostController extends AbstractController
 
         $posts = $postRepository->findPaginatedPosts($page, $limit, $user);
 
-
-
         $postsData = [];
         foreach ($posts as $post) {
             $author = $post->getAuthor();
+
+            // Vérifie si l'auteur est banni
+            if ($author->getIsBlocked()) {
+                $postsData[] = [
+                    'id' => $post->getId(),
+                    'content' => 'Cet utilisateur est banni',
+                    'created_at' => $post->getCreatedAt()->format('Y-m-d H:i:s'),
+                    'likes' => count($post->getLikes()),
+                    'isLiked' => false,
+                    'authorId' => $author->getId(),
+                    'isFollowing' => false,
+                ];
+                continue; // Ignore le reste du traitement pour ce post
+            }
+
             $isFollowing = $user ? $postRepository->isFollowing($user, $author) : false;
 
             $postsData[] = [
@@ -58,6 +71,7 @@ class PostController extends AbstractController
 
         return new JsonResponse(['posts' => $postsData], JsonResponse::HTTP_OK);
     }
+
 
 
     #[Route('/api/posts', methods: ['POST'], defaults: ["_format" => "json"])]

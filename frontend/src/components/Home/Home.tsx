@@ -108,7 +108,7 @@ const Home = () => {
               id={post.id}
               authorId={post.authorId}
               authorUsername={post.authorUsername}
-              isFollowed={post.isFollowed}
+              
               
             />
           ))
