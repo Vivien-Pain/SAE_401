@@ -1,14 +1,25 @@
 import { useState, useEffect } from 'react';
 import Icons from '../../ui/Icons/Icons';
 
+interface Reply {
+  id: number;
+  content: string;
+  created_at: string;
+  authorId: number;
+  authorUsername: string;
+  media?: string[];
+}
+
 interface PostProps {
   content: string;
   created_at: string;
-  id?: number;          // ID du post
-  likes: number;        // Compteur de likes
-  isLiked: boolean;     // Statut du like pour l'utilisateur connecté
-  authorId: number;     // ID de l'auteur du post
-  authorUsername: string; // Nom de l'auteur (pour affichage, si besoin)
+  id: number;
+  likes: number;
+  isLiked: boolean;
+  authorId: number;
+  authorUsername: string;
+  media?: string[];
+  replies?: Reply[];
 }
 
 const formatDate = (date: string) => {
@@ -24,161 +35,214 @@ const Post = ({
   likes,
   isLiked,
   authorId,
+  authorUsername,
+  media,
+  replies: initialReplies = [],
 }: PostProps) => {
   const [likeCount, setLikeCount] = useState<number>(likes ?? 0);
-  const [liked, setLiked] = useState(isLiked);
-  const [authorProfile, setAuthorProfile] = useState<{ username: string, profilePicture: string } | null>(null);
+  const [liked, setLiked] = useState<boolean>(isLiked);
+  const [authorProfile, setAuthorProfile] = useState<{ username: string; profilePicture: string } | null>(null);
+  const [currentUser, setCurrentUser] = useState<{ username: string; id: number } | null>(null);
+  const [isBlockedByAuthor, setIsBlockedByAuthor] = useState(false);
 
-  // Fonction pour récupérer les informations du profil de l'auteur
+  const [isEditing, setIsEditing] = useState(false);
+
+
+  const [showReplyField, setShowReplyField] = useState(false);
+  const [replyContent, setReplyContent] = useState('');
+  const [replies, setReplies] = useState<Reply[]>(initialReplies);
+
   useEffect(() => {
     const fetchAuthorProfile = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        if (!token) {
-          console.error("Aucun token trouvé dans localStorage");
-          return;
-        }
-
-        const response = await fetch(`http://localhost:8080/api/users/${authorId}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          setAuthorProfile({
-            username: data.username,
-            profilePicture: data.profilePicture, // Si vous avez une URL d'avatar dans les données de l'utilisateur
-          });
-        } else {
-          console.error("Erreur lors de la récupération du profil de l'auteur :", await response.text());
-        }
-      } catch (error) {
-        console.error("Erreur lors de la requête de récupération du profil :", error);
+      const token = localStorage.getItem("token");
+      if (!token) return;
+      const response = await fetch(`http://localhost:8080/api/users/${authorId}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setAuthorProfile({ username: data.username, profilePicture: data.profilePicture || '' });
       }
     };
-
     fetchAuthorProfile();
   }, [authorId]);
 
-  // Gestion du like
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+      const response = await fetch('http://localhost:8080/api/current_user', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setCurrentUser({ username: data.username, id: data.id });
+      }
+    };
+    fetchCurrentUser();
+  }, []);
+
+  useEffect(() => {
+    const checkIfBlocked = async () => {
+      if (!currentUser || !authorId) return;
+      const token = localStorage.getItem("token");
+      if (!token) return;
+      const response = await fetch(`http://localhost:8080/api/users/${authorId}/blocked`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const blockedIds = data.map((u: any) => u.id);
+        if (blockedIds.includes(currentUser.id)) {
+          setIsBlockedByAuthor(true);
+        }
+      }
+    };
+    checkIfBlocked();
+  }, [currentUser, authorId]);
+
   const handleLike = async () => {
-    if (!id) {
-      console.error("L'id du post est indéfini");
-      return;
-    }
+    if (!id || isBlockedByAuthor) return;
     const token = localStorage.getItem("token");
-    if (!token) {
-      console.error("Aucun token trouvé dans localStorage");
-      return;
-    }
-    const endpoint = `http://localhost:8080/api/posts/${id}/like`;
-    try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        console.log("Nombre de likes reçu après like :", data.likes);
-        if (typeof data.likes === "number") {
-          setLikeCount(data.likes);
-          setLiked(true);
-        } else {
-          console.error("Réponse invalide pour les likes :", data);
-        }
-      } else {
-        console.error("Erreur lors du like :", await response.text());
-      }
-    } catch (error) {
-      console.error("Erreur lors de la requête de like :", error);
+    if (!token) return;
+    const response = await fetch(`http://localhost:8080/api/posts/${id}/like`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    });
+    if (response.ok) {
+      const data = await response.json();
+      setLikeCount(data.likes);
+      setLiked(true);
     }
   };
 
-  // Gestion de l'unlike
   const handleUnlike = async () => {
-    if (!id) {
-      console.error("L'id du post est indéfini");
-      return;
-    }
+    if (!id || isBlockedByAuthor) return;
     const token = localStorage.getItem("token");
-    if (!token) {
-      console.error("Aucun token trouvé dans localStorage");
-      return;
-    }
-    const endpoint = `http://localhost:8080/api/posts/${id}/unlike`;
-    try {
-      const response = await fetch(endpoint, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        console.log("Nombre de likes reçu après unlike :", data.likes);
-        if (typeof data.likes === "number") {
-          setLikeCount(data.likes);
-          setLiked(false);
-        } else {
-          console.error("Réponse invalide pour les likes :", data);
-        }
-      } else {
-        console.error("Erreur lors de l'unlike :", await response.text());
-      }
-    } catch (error) {
-      console.error("Erreur lors de la requête d'unlike :", error);
+    if (!token) return;
+    const response = await fetch(`http://localhost:8080/api/posts/${id}/unlike`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    });
+    if (response.ok) {
+      const data = await response.json();
+      setLikeCount(data.likes);
+      setLiked(false);
     }
   };
 
+  const handleReplySubmit = async () => {
+    if (!replyContent.trim() || !id || isBlockedByAuthor) return;
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    const formData = new FormData();
+    formData.append('content', replyContent);
+    formData.append('parent_id', id.toString());
+    const response = await fetch('http://localhost:8080/api/posts', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: formData,
+    });
+    if (response.ok) {
+      setReplies(prev => [...prev, {
+        id: Math.floor(Math.random() * 100000),
+        content: replyContent,
+        created_at: new Date().toISOString(),
+        authorId: currentUser?.id ?? 0,
+        authorUsername: currentUser?.username ?? 'Moi',
+        media: [],
+      }]);
+      setReplyContent('');
+      setShowReplyField(false);
+    }
+  };
+
+  
   return (
     <div className="bg-white border border-gray-300 rounded-lg p-4 shadow-sm w-full max-w-md">
-      {/* Header: Author's profile and date */}
       <div className="flex items-center mb-4">
         {authorProfile?.profilePicture ? (
-          <img
-            src={authorProfile.profilePicture}
-            alt={`${authorProfile.username}'s avatar`}
-            className="w-10 h-10 rounded-full mr-3"
-          />
+          <img src={authorProfile.profilePicture} alt={authorProfile.username} className="w-10 h-10 rounded-full mr-3" />
         ) : (
           <div className="w-10 h-10 rounded-full bg-gray-300 mr-3" />
         )}
         <div>
-            <a
-            href={`/profile/${authorProfile?.username}`}
-            className="font-semibold text-gray-800 hover:underline"
-            >
+          <a href={`/profile/${authorProfile?.username}`} className="font-semibold text-gray-800 hover:underline">
             {authorProfile?.username || "Auteur inconnu"}
-            </a>
+          </a>
           <p className="text-sm text-gray-500">Posté le: {formatDate(created_at)}</p>
         </div>
       </div>
 
-      {/* Content */}
-      <p className="text-gray-800 mb-4">{content}</p>
+      <p className="mb-4 text-gray-800">{content}</p>
+      {media && media.length > 0 && (
+        <div className="mb-4">
+          {media.map((url, index) => (
+            <img key={index} src={`http://localhost:8080${url}`} alt={`Post media ${index}`} className="w-full h-auto rounded-lg" />
+          ))}
+        </div>
+      )}
 
-      {/* Actions: Like */}
-      <div className="flex items-center">
-        {liked ? (
-          <button onClick={handleUnlike} className="flex items-center mr-4">
-            <Icons className="w-6 h-6 text-red-500" />
-            <span className="ml-2">{likeCount ?? 0}</span>
-          </button>
-        ) : (
-          <button onClick={handleLike} className="flex items-center mr-4">
-            <Icons className="w-6 h-6 text-gray-500" />
-            <span className="ml-2">{likeCount ?? 0}</span>
+      <div className="flex items-center justify-between">
+        {!isBlockedByAuthor && (
+          <div className="flex items-center">
+            {liked ? (
+              <button onClick={handleUnlike} className="flex items-center mr-4">
+                <Icons className="w-6 h-6 text-red-500" />
+                <span className="ml-2">{likeCount ?? 0}</span>
+              </button>
+            ) : (
+              <button onClick={handleLike} className="flex items-center mr-4">
+                <Icons className="w-6 h-6 text-gray-500" />
+                <span className="ml-2">{likeCount ?? 0}</span>
+              </button>
+            )}
+          </div>
+        )}
+        {currentUser && currentUser.username === authorUsername && !isEditing && (
+          <button onClick={() => setIsEditing(true)} className="bg-yellow-500 text-white px-4 py-2 rounded">
+            Modifier
           </button>
         )}
       </div>
+
+      {!isBlockedByAuthor && (
+        <>
+          <button onClick={() => setShowReplyField(!showReplyField)} className="flex items-center text-blue-500 mt-3">
+            💬 Répondre
+          </button>
+          {showReplyField && (
+            <div className="mt-2">
+              <textarea className="w-full p-2 border border-gray-300 rounded mb-2" rows={2} placeholder="Votre réponse..." value={replyContent} onChange={(e) => setReplyContent(e.target.value)} />
+              <button onClick={handleReplySubmit} className="bg-blue-500 text-white px-3 py-1 rounded">
+                Publier
+              </button>
+            </div>
+          )}
+        </>
+      )}
+
+      {replies.length > 0 && (
+        <div className="mt-4 border-t pt-2 space-y-2">
+          {replies.map((rep) => (
+            <div key={rep.id} className="ml-4 bg-gray-100 p-2 rounded">
+              <p className="text-sm text-gray-600">
+                <strong>{rep.authorUsername}</strong> – {formatDate(rep.created_at)}
+              </p>
+              <p className="text-gray-800">{rep.content}</p>
+              {rep.media && rep.media.length > 0 && (
+                <div className="mt-2">
+                  {rep.media.map((murl, idx) => (
+                    <img key={idx} src={`http://localhost:8080${murl}`} alt={`Reply media ${idx}`} className="max-w-xs rounded" />
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

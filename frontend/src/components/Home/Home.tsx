@@ -49,7 +49,17 @@ const Home = () => {
       }
       const data = await response.json();
 
-      setPosts(data.posts);
+      // Vérifie que chaque post contient bien `media` et trie les posts par date décroissante
+      setPosts(
+        data.posts
+          .map((post: { media?: any[]; created_at: string }) => ({
+            ...post,
+            media: post.media || [], // Ajoute un tableau vide si `media` est absent
+          }))
+          .sort((a: { created_at: string }, b: { created_at: string }) => 
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          ) // Trie par date décroissante
+      );
     } catch (error) {
       console.error("Erreur lors de la récupération des posts", error);
     }
@@ -108,12 +118,15 @@ const Home = () => {
               id={post.id}
               authorId={post.authorId}
               authorUsername={post.authorUsername}
-              
-              
+              media={post.media}
+              replies={post.replies} 
             />
           ))
         ) : (
-          <p>Aucun post disponible</p>
+          <div>
+            <p>Aucun post disponible</p>
+            <NavBar openPostForm={openPostForm} username={user.username} profilePicture={null} onRefresh={() => fetchPosts().then(() => {})} />
+          </div>
         )}
       </div>
 

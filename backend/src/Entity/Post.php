@@ -26,18 +26,30 @@ class Post
     #[Groups(['post'])]
     private \DateTimeInterface $created_at;
 
+    #[ORM\Column(type: 'json', nullable: true)]
+    #[Groups(['post'])]
+    private ?array $media = [];
+
     #[ORM\ManyToOne(targetEntity: User::class, inversedBy: 'posts')]
     #[ORM\JoinColumn(nullable: false)]
     private User $author;
 
-    // Nouvelle relation pour gérer les likes
     #[ORM\ManyToMany(targetEntity: User::class, inversedBy: 'likedPosts')]
     #[ORM\JoinTable(name: 'post_likes')]
     private Collection $likes;
 
+    // ✅ Nouvelle relation : parent (le tweet auquel celui-ci répond)
+    #[ORM\ManyToOne(targetEntity: Post::class, inversedBy: 'replies')]
+    private ?Post $parent = null;
+
+    // ✅ Nouvelle relation : replies (les réponses à ce tweet)
+    #[ORM\OneToMany(mappedBy: 'parent', targetEntity: Post::class, cascade: ['remove'])]
+    private Collection $replies;
+
     public function __construct()
     {
         $this->likes = new ArrayCollection();
+        $this->replies = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -78,7 +90,6 @@ class Post
         return $this;
     }
 
-    // Getter et Setter pour les likes
     public function getLikes(): Collection
     {
         return $this->likes;
@@ -96,6 +107,54 @@ class Post
     public function removeLike(User $user): self
     {
         $this->likes->removeElement($user);
+        return $this;
+    }
+
+    public function getMedia(): ?array
+    {
+        return $this->media;
+    }
+
+    public function setMedia(?array $media): self
+    {
+        $this->media = $media;
+        return $this;
+    }
+
+    // ✅ Getters/Setters pour la réponse
+    public function getParent(): ?Post
+    {
+        return $this->parent;
+    }
+
+    public function setParent(?Post $parent): self
+    {
+        $this->parent = $parent;
+        return $this;
+    }
+
+    public function getReplies(): Collection
+    {
+        return $this->replies;
+    }
+
+    public function addReply(Post $reply): self
+    {
+        if (!$this->replies->contains($reply)) {
+            $this->replies[] = $reply;
+            $reply->setParent($this);
+        }
+
+        return $this;
+    }
+
+    public function removeReply(Post $reply): self
+    {
+        if ($this->replies->removeElement($reply)) {
+            if ($reply->getParent() === $this) {
+                $reply->setParent(null);
+            }
+        }
 
         return $this;
     }
