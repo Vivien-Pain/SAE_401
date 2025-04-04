@@ -20,6 +20,7 @@ interface PostProps {
   authorUsername: string;
   media?: string[];
   replies?: Reply[];
+  isCensored: boolean;
 }
 
 const formatDate = (date: string) => {
@@ -38,16 +39,14 @@ const Post = ({
   authorUsername,
   media,
   replies: initialReplies = [],
+  isCensored,
 }: PostProps) => {
   const [likeCount, setLikeCount] = useState<number>(likes ?? 0);
   const [liked, setLiked] = useState<boolean>(isLiked);
   const [authorProfile, setAuthorProfile] = useState<{ username: string; profilePicture: string } | null>(null);
   const [currentUser, setCurrentUser] = useState<{ username: string; id: number } | null>(null);
   const [isBlockedByAuthor, setIsBlockedByAuthor] = useState(false);
-
   const [isEditing, setIsEditing] = useState(false);
-
-
   const [showReplyField, setShowReplyField] = useState(false);
   const [replyContent, setReplyContent] = useState('');
   const [replies, setReplies] = useState<Reply[]>(initialReplies);
@@ -104,7 +103,7 @@ const Post = ({
   }, [currentUser, authorId]);
 
   const handleLike = async () => {
-    if (!id || isBlockedByAuthor) return;
+    if (!id || isBlockedByAuthor || isCensored) return;
     const token = localStorage.getItem("token");
     if (!token) return;
     const response = await fetch(`http://localhost:8080/api/posts/${id}/like`, {
@@ -119,7 +118,7 @@ const Post = ({
   };
 
   const handleUnlike = async () => {
-    if (!id || isBlockedByAuthor) return;
+    if (!id || isBlockedByAuthor || isCensored) return;
     const token = localStorage.getItem("token");
     if (!token) return;
     const response = await fetch(`http://localhost:8080/api/posts/${id}/unlike`, {
@@ -134,7 +133,7 @@ const Post = ({
   };
 
   const handleReplySubmit = async () => {
-    if (!replyContent.trim() || !id || isBlockedByAuthor) return;
+    if (!replyContent.trim() || !id || isBlockedByAuthor || isCensored) return;
     const token = localStorage.getItem("token");
     if (!token) return;
     const formData = new FormData();
@@ -159,7 +158,6 @@ const Post = ({
     }
   };
 
-  
   return (
     <div className="bg-white border border-gray-300 rounded-lg p-4 shadow-sm w-full max-w-md">
       <div className="flex items-center mb-4">
@@ -176,8 +174,15 @@ const Post = ({
         </div>
       </div>
 
-      <p className="mb-4 text-gray-800">{content}</p>
-      {media && media.length > 0 && (
+      <p className="mb-4 text-gray-800">
+        {isBlockedByAuthor
+          ? "Ce contenu est masqué car vous êtes bloqué par l'auteur"
+          : isCensored
+          ? "⚠️ Ce message enfreint les conditions d’utilisation de la plateforme"
+          : content}
+      </p>
+
+      {media && media.length > 0 && !isCensored && (
         <div className="mb-4">
           {media.map((url, index) => (
             <img key={index} src={`http://localhost:8080${url}`} alt={`Post media ${index}`} className="w-full h-auto rounded-lg" />
@@ -186,7 +191,7 @@ const Post = ({
       )}
 
       <div className="flex items-center justify-between">
-        {!isBlockedByAuthor && (
+        {!isBlockedByAuthor && !isCensored && (
           <div className="flex items-center">
             {liked ? (
               <button onClick={handleUnlike} className="flex items-center mr-4">
@@ -201,6 +206,7 @@ const Post = ({
             )}
           </div>
         )}
+
         {currentUser && currentUser.username === authorUsername && !isEditing && (
           <button onClick={() => setIsEditing(true)} className="bg-yellow-500 text-white px-4 py-2 rounded">
             Modifier
@@ -208,7 +214,7 @@ const Post = ({
         )}
       </div>
 
-      {!isBlockedByAuthor && (
+      {!isBlockedByAuthor && !isCensored && (
         <>
           <button onClick={() => setShowReplyField(!showReplyField)} className="flex items-center text-blue-500 mt-3">
             💬 Répondre
@@ -224,7 +230,7 @@ const Post = ({
         </>
       )}
 
-      {replies.length > 0 && (
+      {!isCensored && replies.length > 0 && (
         <div className="mt-4 border-t pt-2 space-y-2">
           {replies.map((rep) => (
             <div key={rep.id} className="ml-4 bg-gray-100 p-2 rounded">

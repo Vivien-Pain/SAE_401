@@ -57,6 +57,7 @@ class PostController extends AbstractController
                     'authorId' => $replyAuthor->getId(),
                     'authorUsername' => $replyAuthor->getUsername(),
                     'media' => $replyPost->getMedia() ?? [],
+                    'isCensored' => $replyPost->isCensored(), // ✅ Ajout ici
                 ];
             }, $repliesCollection->toArray());
         };
@@ -75,12 +76,14 @@ class PostController extends AbstractController
                 'authorId' => $author->getId(),
                 'authorUsername' => $author->getUsername(),
                 'media' => $post->getMedia() ?? [],
-                'replies' => $formatReplies($replies), // ✅ réponses incluses
+                'replies' => $formatReplies($replies),
+                'isCensored' => $post->isCensored(), // ✅ Ajout ici
             ];
         }, $posts);
 
         return new JsonResponse(['posts' => $postsData], JsonResponse::HTTP_OK);
     }
+
     /**
      * Crée un nouveau post ou une réponse si "parent_id" est fourni
      */
@@ -269,5 +272,25 @@ class PostController extends AbstractController
             'location'       => $user->getLocation(),
             'website'        => $user->getWebsite(),
         ], JsonResponse::HTTP_OK);
+    }
+
+    #[Route('/api/admin/posts', name: 'get_all_posts', methods: ['GET'])]
+    public function getAllPosts(PostRepository $postRepository): JsonResponse
+    {
+        $posts = $postRepository->findAllWithUser();
+        $data = [];
+
+        foreach ($posts as $post) {
+            $data[] = [
+                'id' => $post->getId(),
+                'content' => $post->getContent(),
+                'isCensored' => $post->isCensored(),
+                'author' => [
+                    'username' => $post->getUser()->getUsername(),
+                ],
+            ];
+        }
+
+        return new JsonResponse($data);
     }
 }

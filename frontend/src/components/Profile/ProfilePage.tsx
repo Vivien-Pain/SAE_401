@@ -274,7 +274,8 @@ export default function ProfilePage() {
                 authorId={post.authorId}
                 authorUsername={post.authorUsername}
                 media={post.media}
-                replies={post.replies} 
+                replies={post.replies}
+                isCensored={false} // Add appropriate logic for isCensored if needed
               />
               <button onClick={() => handleDeletePost(post.id)} className="text-red-500 mt-2">Supprimer</button>
             </div>

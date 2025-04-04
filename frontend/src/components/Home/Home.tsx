@@ -120,6 +120,7 @@ const Home = () => {
               authorUsername={post.authorUsername}
               media={post.media}
               replies={post.replies} 
+              isCensored={post.isCensored}
             />
           ))
         ) : (

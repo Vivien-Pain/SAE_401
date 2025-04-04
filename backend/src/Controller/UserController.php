@@ -7,6 +7,7 @@ use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Annotation\Route;
+use App\Repository\PostRepository;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 
@@ -14,17 +15,14 @@ class UserController extends AbstractController
 {
 
     #[Route('/api/admin', name: 'admin', methods: ["GET"])]
-    public function getUsers(UserRepository $userRepository): JsonResponse
+    public function getAdminDashboard(UserRepository $userRepository, PostRepository $postRepository): JsonResponse
     {
+        // 🔹 Récupération des utilisateurs
         $users = $userRepository->findAll();
-        if (!$users) {
-            return new JsonResponse(['message' => 'Aucun utilisateur trouvé'], 404);
-        }
         $userData = [];
 
         foreach ($users as $user) {
             $roles = $user->getRoles();
-            // Si aucun rôle n'est défini, attribue un rôle par défaut
             $role = !empty($roles) ? $roles[0] : 'ROLE_USER';
 
             $userData[] = [
@@ -36,7 +34,25 @@ class UserController extends AbstractController
             ];
         }
 
-        return new JsonResponse($userData);
+        // 🔹 Récupération des posts avec auteur
+        $posts = $postRepository->findAllWithUser(); // tu dois avoir cette méthode dans PostRepository
+        $postData = [];
+
+        foreach ($posts as $post) {
+            $postData[] = [
+                'id' => $post->getId(),
+                'content' => $post->getContent(),
+                'isCensored' => $post->isCensored(),
+                'author' => [
+                    'username' => $post->getAuthor()->getUsername(),
+                ],
+            ];
+        }
+
+        return new JsonResponse([
+            'users' => $userData,
+            'posts' => $postData,
+        ]);
     }
 
 
@@ -83,5 +99,20 @@ class UserController extends AbstractController
             'message' => $user->getIsBlocked() ? 'Utilisateur bloqué' : 'Utilisateur débloqué',
             'isBlocked' => $user->getIsBlocked(),
         ]);
+    }
+
+    #[Route('/api/admin/{id}/censor', name: 'censor_post', methods: ['POST'])]
+    public function censorPost(int $id, PostRepository $postRepository, EntityManagerInterface $em): JsonResponse
+    {
+        $post = $postRepository->find($id);
+
+        if (!$post) {
+            return new JsonResponse(['message' => 'Post non trouvé'], 404);
+        }
+
+        $post->setIsCensored(true);
+        $em->flush();
+
+        return new JsonResponse(['message' => 'Post censuré']);
     }
 }

@@ -84,4 +84,14 @@ class PostRepository extends ServiceEntityRepository
         // Add your token validation logic here
         return $this->token === $token; // Example logic
     }
+
+    public function findAllWithUser(): array
+    {
+        return $this->createQueryBuilder('p')
+            ->leftJoin('p.author', 'u')
+            ->addSelect('u')
+            ->orderBy('p.created_at', 'DESC')
+            ->getQuery()
+            ->getResult();
+    }
 }

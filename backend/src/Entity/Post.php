@@ -38,6 +38,9 @@ class Post
     #[ORM\JoinTable(name: 'post_likes')]
     private Collection $likes;
 
+    #[ORM\Column(type: 'boolean')]
+    private bool $isCensored = false;
+
     // ✅ Nouvelle relation : parent (le tweet auquel celui-ci répond)
     #[ORM\ManyToOne(targetEntity: Post::class, inversedBy: 'replies')]
     private ?Post $parent = null;
@@ -156,6 +159,17 @@ class Post
             }
         }
 
+        return $this;
+    }
+
+    public function isCensored(): bool
+    {
+        return $this->isCensored;
+    }
+
+    public function setIsCensored(bool $isCensored): self
+    {
+        $this->isCensored = $isCensored;
         return $this;
     }
 }
