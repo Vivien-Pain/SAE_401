@@ -25,8 +25,7 @@ interface PostProps {
 
 const formatDate = (date: string) => {
   const d = new Date(date);
-  return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1)
-    .toString().padStart(2, '0')}/${d.getFullYear()} ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}:${d.getSeconds().toString().padStart(2, '0')}`;
+  return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()} ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}:${d.getSeconds().toString().padStart(2, '0')}`;
 };
 
 const Post = ({
@@ -44,9 +43,8 @@ const Post = ({
   const [likeCount, setLikeCount] = useState<number>(likes ?? 0);
   const [liked, setLiked] = useState<boolean>(isLiked);
   const [authorProfile, setAuthorProfile] = useState<{ username: string; profilePicture: string } | null>(null);
-  const [currentUser, setCurrentUser] = useState<{ username: string; id: number } | null>(null);
+  const [currentUser, setCurrentUser] = useState<{ username: string; id: number; readOnlyMode: boolean } | null>(null);
   const [isBlockedByAuthor, setIsBlockedByAuthor] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
   const [showReplyField, setShowReplyField] = useState(false);
   const [replyContent, setReplyContent] = useState('');
   const [replies, setReplies] = useState<Reply[]>(initialReplies);
@@ -77,30 +75,11 @@ const Post = ({
       });
       if (response.ok) {
         const data = await response.json();
-        setCurrentUser({ username: data.username, id: data.id });
+        setCurrentUser({ username: data.username, id: data.id, readOnlyMode: data.readOnlyMode });
       }
     };
     fetchCurrentUser();
   }, []);
-
-  useEffect(() => {
-    const checkIfBlocked = async () => {
-      if (!currentUser || !authorId) return;
-      const token = localStorage.getItem("token");
-      if (!token) return;
-      const response = await fetch(`http://localhost:8080/api/users/${authorId}/blocked`, {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        const blockedIds = data.map((u: any) => u.id);
-        if (blockedIds.includes(currentUser.id)) {
-          setIsBlockedByAuthor(true);
-        }
-      }
-    };
-    checkIfBlocked();
-  }, [currentUser, authorId]);
 
   const handleLike = async () => {
     if (!id || isBlockedByAuthor || isCensored) return;
@@ -133,7 +112,7 @@ const Post = ({
   };
 
   const handleReplySubmit = async () => {
-    if (!replyContent.trim() || !id || isBlockedByAuthor || isCensored) return;
+    if (!replyContent.trim() || !id || isBlockedByAuthor || isCensored || currentUser?.readOnlyMode) return;
     const token = localStorage.getItem("token");
     if (!token) return;
     const formData = new FormData();
@@ -176,9 +155,9 @@ const Post = ({
 
       <p className="mb-4 text-gray-800">
         {isBlockedByAuthor
-          ? "Ce contenu est masqué car vous êtes bloqué par l'auteur"
+          ? "Ce contenu est masqué car vous êtes bloqué par l'auteur."
           : isCensored
-          ? "⚠️ Ce message enfreint les conditions d’utilisation de la plateforme"
+          ? "⚠️ Ce message enfreint les conditions d’utilisation de la plateforme."
           : content}
       </p>
 
@@ -206,22 +185,22 @@ const Post = ({
             )}
           </div>
         )}
-
-        {currentUser && currentUser.username === authorUsername && !isEditing && (
-          <button onClick={() => setIsEditing(true)} className="bg-yellow-500 text-white px-4 py-2 rounded">
-            Modifier
-          </button>
-        )}
       </div>
 
-      {!isBlockedByAuthor && !isCensored && (
+      {!isBlockedByAuthor && !isCensored && !currentUser?.readOnlyMode && (
         <>
           <button onClick={() => setShowReplyField(!showReplyField)} className="flex items-center text-blue-500 mt-3">
             💬 Répondre
           </button>
           {showReplyField && (
             <div className="mt-2">
-              <textarea className="w-full p-2 border border-gray-300 rounded mb-2" rows={2} placeholder="Votre réponse..." value={replyContent} onChange={(e) => setReplyContent(e.target.value)} />
+              <textarea
+                className="w-full p-2 border border-gray-300 rounded mb-2"
+                rows={2}
+                placeholder="Votre réponse..."
+                value={replyContent}
+                onChange={(e) => setReplyContent(e.target.value)}
+              />
               <button onClick={handleReplySubmit} className="bg-blue-500 text-white px-3 py-1 rounded">
                 Publier
               </button>

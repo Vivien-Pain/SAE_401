@@ -2,17 +2,16 @@ import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import Post from "../../ui/Post/Post";
 
-interface Post {
+interface PostType {
   id: number;
   content: string;
   created_at: string;
-  authorUsername: string; 
+  authorUsername: string;
   likes: number;
   isLiked: boolean;
   authorId: number;
-  isFollowed: boolean;
   media: string[];
-  replies?: Post[];
+  replies?: PostType[];
 }
 
 interface UserProfile {
@@ -23,16 +22,14 @@ interface UserProfile {
   banner: string;
   location: string;
   website: string;
-  posts: Post[];
-  isFollowed: boolean;
+  posts: PostType[];
+  readOnlyMode: boolean;
 }
 
 export default function ProfilePage() {
   const { username } = useParams<{ username: string }>();
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [isFollowed, setIsFollowed] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [isBlocked, setIsBlocked] = useState(false);
   const [currentUser, setCurrentUser] = useState<{ username: string } | null>(null);
   const [formData, setFormData] = useState({
     bio: "",
@@ -41,14 +38,13 @@ export default function ProfilePage() {
     location: "",
     website: "",
   });
+  const [isBlocked, setIsBlocked] = useState(false); // 🚀 Ajouter état pour le blocage
 
   useEffect(() => {
     if (!username) {
       console.error("Nom d'utilisateur invalide.");
       return;
     }
-
-    const token = localStorage.getItem("token");
 
     fetch(`http://localhost:8080/api/profile/${username}`)
       .then((res) => {
@@ -57,27 +53,15 @@ export default function ProfilePage() {
       })
       .then((data) => {
         setProfile(data);
-        setIsFollowed(data.isFollowed);
         setFormData({
-          bio: data.bio,
-          profilePicture: data.profilePicture,
-          banner: data.banner,
-          location: data.location,
-          website: data.website,
+          bio: data.bio || "",
+          profilePicture: data.profilePicture || "",
+          banner: data.banner || "",
+          location: data.location || "",
+          website: data.website || "",
         });
       })
       .catch((error) => console.error("Erreur lors de la récupération du profil:", error));
-
-    if (token) {
-      fetch("http://localhost:8080/api/blocked", {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-        .then((res) => res.json())
-        .then((blockedList) => {
-          const isBlockedUser = blockedList.find((b: any) => b.username === username);
-          setIsBlocked(!!isBlockedUser);
-        });
-    }
   }, [username]);
 
   useEffect(() => {
@@ -98,8 +82,26 @@ export default function ProfilePage() {
       }
     };
 
+    const fetchBlockStatus = async () => {
+      const token = localStorage.getItem("token");
+      if (!token || !username) return;
+
+      const res = await fetch(`http://localhost:8080/api/blocked`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (res.ok) {
+        const blockedUsers = await res.json();
+        const blocked = blockedUsers.find((u: any) => u.username === username);
+        setIsBlocked(!!blocked);
+      }
+    };
+
     fetchCurrentUser();
-  }, []);
+    fetchBlockStatus();
+  }, [username]);
 
   const handleEditToggle = () => {
     setIsEditing(!isEditing);
@@ -109,105 +111,91 @@ export default function ProfilePage() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = () => {
-    fetch(`http://localhost:8080/api/profile/${username}/edit`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
-      body: JSON.stringify(formData),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        setProfile(data);
-        setIsEditing(false);
-      })
-      .catch((error) => console.error("Erreur lors de la mise à jour du profil:", error));
+  const handleSubmit = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    try {
+      const response = await fetch(`http://localhost:8080/api/profile/${username}/edit`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) throw new Error("Erreur lors de la mise à jour du profil");
+
+      const data = await response.json();
+      setProfile(prev => ({
+        ...prev!,
+        bio: data.bio,
+        profilePicture: data.profilePicture,
+        banner: data.banner,
+        location: data.location,
+        website: data.website,
+      }));
+      setIsEditing(false);
+    } catch (error) {
+      console.error("Erreur lors de la mise à jour du profil:", error);
+    }
   };
 
-  const handleFollowToggle = () => {
-    if (!profile) return;
-
+  const handleToggleReadOnlyMode = async () => {
     const token = localStorage.getItem("token");
-    if (!token) {
-      console.error("Aucun token trouvé, veuillez vous connecter.");
-      return;
+    if (!token || !profile) return;
+
+    try {
+      const response = await fetch(`http://localhost:8080/api/profile/${username}/readonly`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ readOnlyMode: !profile.readOnlyMode }),
+      });
+
+      if (!response.ok) throw new Error("Erreur lors de l'activation/désactivation lecture seule");
+
+      const updated = await response.json();
+      setProfile(prev => ({
+        ...prev!,
+        readOnlyMode: updated.readOnlyMode,
+      }));
+    } catch (error) {
+      console.error("Erreur mode lecture seule:", error);
     }
-
-    const url = `http://localhost:8080/api/profile/${username}/${isFollowed ? "unfollow" : "follow"}`;
-    const method = isFollowed ? "DELETE" : "POST";
-
-    fetch(url, {
-      method,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("Erreur lors de la mise à jour du suivi");
-        setIsFollowed(!isFollowed);
-      })
-      .catch((error) => console.error("Erreur lors de la mise à jour du suivi:", error));
   };
 
   const handleBlockToggle = async () => {
     const token = localStorage.getItem("token");
-    if (!token || !profile?.id) {
-      console.error("Token ou ID de profil manquant.");
-      return;
-    }
+    if (!token || !profile) return;
 
-    const method = isBlocked ? "DELETE" : "POST";
-    const endpoint = `http://localhost:8080/api/users/${profile.id}/${isBlocked ? "unblock" : "block"}`;
+    const endpoint = isBlocked
+      ? `http://localhost:8080/api/users/${profile.id}/unblock`
+      : `http://localhost:8080/api/users/${profile.id}/block`;
 
     try {
-      const res = await fetch(endpoint, {
-        method,
+      const response = await fetch(endpoint, {
+        method: isBlocked ? "DELETE" : "POST",
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
-      if (!res.ok) {
-        const errorData = await res.json();
-        console.error("Erreur API:", errorData.message || "Erreur inconnue");
-        alert(`Erreur: ${errorData.message || "Impossible d'effectuer l'action"}`);
+      if (!response.ok) {
+        const data = await response.json();
+        alert(data.message || "Erreur inconnue");
         return;
       }
 
-      const data = await res.json();
+      const data = await response.json();
       alert(data.message);
       setIsBlocked(!isBlocked);
-    } catch (err) {
-      console.error("Erreur réseau:", err);
-      alert("Erreur réseau lors de l'envoi de la requête");
+    } catch (error) {
+      console.error("Erreur lors du blocage/déblocage:", error);
     }
-  };
-
-  const handleDeletePost = (postId: number) => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      console.error("Aucun token trouvé, veuillez vous connecter.");
-      return;
-    }
-
-    fetch(`http://localhost:8080/api/posts/${postId}`, {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("Erreur lors de la suppression du post");
-        setProfile((prevProfile) => ({
-          ...prevProfile!,
-          posts: prevProfile!.posts.filter((post) => post.id !== postId),
-        }));
-      })
-      .catch((error) => console.error("Erreur lors de la suppression du post:", error));
   };
 
   if (!profile) return <p>Chargement...</p>;
@@ -223,36 +211,38 @@ export default function ProfilePage() {
         <h1 className="text-2xl font-bold">
           {profile.username} {currentUser?.username === profile.username && <span className="text-sm text-gray-500">(Vous)</span>}
         </h1>
+
         {!isEditing ? (
           <>
             <p className="text-gray-600">{profile.bio}</p>
             <p className="text-gray-500">{profile.location}</p>
             <a href={profile.website} className="text-blue-500">{profile.website}</a>
             {currentUser?.username === profile.username && (
-              <button onClick={handleEditToggle} className="ml-4 px-4 py-2 bg-yellow-500 text-white rounded">Modifier</button>
+              <>
+                <button onClick={handleEditToggle} className="ml-4 px-4 py-2 bg-yellow-500 text-white rounded">Modifier</button>
+                <button onClick={handleToggleReadOnlyMode} className="ml-4 px-4 py-2 bg-purple-500 text-white rounded">
+                  {profile.readOnlyMode ? "Désactiver Lecture Seule" : "Activer Lecture Seule"}
+                </button>
+              </>
+            )}
+            {currentUser?.username !== profile.username && (
+              <button onClick={handleBlockToggle} className={`ml-4 px-4 py-2 rounded ${isBlocked ? "bg-green-500" : "bg-red-500"} text-white`}>
+                {isBlocked ? "Débloquer" : "Bloquer"}
+              </button>
             )}
           </>
         ) : (
-          <div className="flex flex-col space-y-2">
+          <div className="flex flex-col space-y-2 mt-4">
             <input type="text" name="bio" value={formData.bio} onChange={handleChange} placeholder="Bio" className="border p-2" />
-            <input type="text" name="profilePicture" value={formData.profilePicture} onChange={handleChange} placeholder="URL Photo de Profil" className="border p-2" />
-            <input type="text" name="banner" value={formData.banner} onChange={handleChange} placeholder="URL Bannière" className="border p-2" />
+            <input type="text" name="profilePicture" value={formData.profilePicture} onChange={handleChange} placeholder="Photo de profil (URL)" className="border p-2" />
+            <input type="text" name="banner" value={formData.banner} onChange={handleChange} placeholder="Bannière (URL)" className="border p-2" />
             <input type="text" name="location" value={formData.location} onChange={handleChange} placeholder="Localisation" className="border p-2" />
-            <input type="text" name="website" value={formData.website} onChange={handleChange} placeholder="Site Web" className="border p-2" />
-            <button onClick={handleSubmit} className="px-4 py-2 bg-green-500 text-white rounded">Enregistrer</button>
-            <button onClick={handleEditToggle} className="px-4 py-2 bg-gray-500 text-white rounded">Annuler</button>
+            <input type="text" name="website" value={formData.website} onChange={handleChange} placeholder="Site web" className="border p-2" />
+            <div className="flex space-x-2">
+              <button onClick={handleSubmit} className="px-4 py-2 bg-green-500 text-white rounded">Enregistrer</button>
+              <button onClick={handleEditToggle} className="px-4 py-2 bg-gray-500 text-white rounded">Annuler</button>
+            </div>
           </div>
-        )}
-
-        {currentUser?.username !== profile.username && (
-          <>
-            <button onClick={handleFollowToggle} className={`mt-4 px-4 py-2 rounded ${isFollowed ? "bg-red-500 text-white" : "bg-blue-500 text-white"}`}>
-              {isFollowed ? "Ne plus suivre" : "Suivre"}
-            </button>
-            <button onClick={handleBlockToggle} className={`ml-2 mt-4 px-4 py-2 rounded ${isBlocked ? "bg-green-500 text-white" : "bg-red-500 text-white"}`}>
-              {isBlocked ? "Débloquer" : "Bloquer"}
-            </button>
-          </>
         )}
       </div>
 
@@ -260,7 +250,7 @@ export default function ProfilePage() {
 
       <div>
         <h2 className="text-xl font-semibold">Posts</h2>
-        {!profile.posts || profile.posts.length === 0 ? (
+        {profile.posts.length === 0 ? (
           <p>Aucun post trouvé.</p>
         ) : (
           profile.posts.map((post) => (
@@ -275,9 +265,8 @@ export default function ProfilePage() {
                 authorUsername={post.authorUsername}
                 media={post.media}
                 replies={post.replies}
-                isCensored={false} // Add appropriate logic for isCensored if needed
+                isCensored={false}
               />
-              <button onClick={() => handleDeletePost(post.id)} className="text-red-500 mt-2">Supprimer</button>
             </div>
           ))
         )}

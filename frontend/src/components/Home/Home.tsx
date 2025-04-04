@@ -7,7 +7,7 @@ import Post from "../../ui/Post/Post";
 const Home = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [posts, setPosts] = useState<any[]>([]);
-  const [user, setUser] = useState<{ username: string | null }>({ username: null });
+  const [user, setUser] = useState<{ username: string | null, readOnlyMode?: boolean }>({ username: null });
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -32,7 +32,7 @@ const Home = () => {
         }
 
         const data = await response.json();
-        setUser({ username: data.username });
+        setUser({ username: data.username, readOnlyMode: data.readOnlyMode });
       } catch (error) {
         console.error("Erreur lors de la récupération de l'utilisateur", error);
       }
@@ -49,16 +49,15 @@ const Home = () => {
       }
       const data = await response.json();
 
-      // Vérifie que chaque post contient bien `media` et trie les posts par date décroissante
       setPosts(
         data.posts
           .map((post: { media?: any[]; created_at: string }) => ({
             ...post,
-            media: post.media || [], // Ajoute un tableau vide si `media` est absent
+            media: post.media || [],
           }))
-          .sort((a: { created_at: string }, b: { created_at: string }) => 
+          .sort((a: { created_at: string }, b: { created_at: string }) =>
             new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-          ) // Trie par date décroissante
+          )
       );
     } catch (error) {
       console.error("Erreur lors de la récupération des posts", error);
@@ -72,7 +71,6 @@ const Home = () => {
   const openPostForm = () => setIsModalOpen(true);
   const closePostForm = () => setIsModalOpen(false);
 
-  // Fonction pour gérer la soumission d'un nouveau post
   const handlePostSubmit = async (content: string) => {
     const token = localStorage.getItem("token");
     if (!token) {
@@ -81,13 +79,15 @@ const Home = () => {
     }
 
     try {
+      const formData = new FormData();
+      formData.append('content', content);
+
       const response = await fetch("http://localhost:8080/api/posts", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`,
         },
-        body: JSON.stringify({ content }),
+        body: formData,
       });
 
       if (!response.ok) {
@@ -95,8 +95,8 @@ const Home = () => {
       }
 
       console.log("Post créé avec succès");
-      fetchPosts(); // Rafraîchir les posts après la création
-      closePostForm(); // Fermer le modal après la soumission
+      fetchPosts();
+      closePostForm();
     } catch (error) {
       console.error("Erreur lors de la création du post", error);
     }
@@ -119,23 +119,29 @@ const Home = () => {
               authorId={post.authorId}
               authorUsername={post.authorUsername}
               media={post.media}
-              replies={post.replies} 
+              replies={post.replies}
               isCensored={post.isCensored}
             />
           ))
         ) : (
           <div>
             <p>Aucun post disponible</p>
-            <NavBar openPostForm={openPostForm} username={user.username} profilePicture={null} onRefresh={() => fetchPosts().then(() => {})} />
           </div>
         )}
       </div>
 
       <div className="fixed bottom-0 w-full">
-        <NavBar openPostForm={openPostForm} username={user.username} profilePicture={null} onRefresh={fetchPosts} />
+        <NavBar 
+          openPostForm={openPostForm} 
+          username={user.username} 
+          profilePicture={null} 
+          onRefresh={fetchPosts} 
+        />
       </div>
 
-      <PostModal isOpen={isModalOpen} onClose={closePostForm} onSubmit={handlePostSubmit} />
+      {!user.readOnlyMode && (
+        <PostModal isOpen={isModalOpen} onClose={closePostForm} onSubmit={handlePostSubmit} />
+      )}
     </div>
   );
 };

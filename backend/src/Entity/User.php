@@ -52,6 +52,9 @@ class User implements PasswordAuthenticatedUserInterface
     #[ORM\Column(type: 'boolean')]
     private bool $isBlocked = false;
 
+    #[ORM\Column(type: 'boolean', options: ['default' => false])]
+    private bool $readOnlyMode = false;
+
     #[ORM\OneToMany(mappedBy: "author", targetEntity: Post::class, cascade: ["remove"])]
     private Collection $posts;
 
@@ -308,6 +311,17 @@ class User implements PasswordAuthenticatedUserInterface
     public function setIsBlocked(bool $isBlocked): self
     {
         $this->isBlocked = $isBlocked;
+        return $this;
+    }
+
+    public function isReadOnlyMode(): bool
+    {
+        return $this->readOnlyMode;
+    }
+
+    public function setReadOnlyMode(bool $readOnlyMode): self
+    {
+        $this->readOnlyMode = $readOnlyMode;
         return $this;
     }
 }

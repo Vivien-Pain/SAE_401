@@ -10,15 +10,10 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\Routing\Annotation\Route;
-use Doctrine\Common\Collections\Collection;
 
 class PostController extends AbstractController
 {
-    /**
-     * Récupère l'utilisateur à partir du Bearer Token
-     */
     private function getUserFromBearer(Request $request, UserRepository $userRepository): ?User
     {
         $authHeader = $request->headers->get('Authorization');
@@ -28,26 +23,15 @@ class PostController extends AbstractController
         }
         return null;
     }
-
-    /**
-     * Récupère tous les posts (avec leurs réponses directes)
-     */
     #[Route('/api/posts', methods: ['GET'], defaults: ["_format" => "json"])]
-    public function getPosts(
-        Request $request,
-        PostRepository $postRepository,
-        UserRepository $userRepository
-    ): JsonResponse {
+    public function getPosts(Request $request, PostRepository $postRepository, UserRepository $userRepository): JsonResponse
+    {
         $user = $this->getUserFromBearer($request, $userRepository);
-
-        // ⚠️ Récupère uniquement les posts parents (ceux sans parent)
         $posts = $postRepository->findBy(['parent' => null], ['created_at' => 'DESC']);
 
-        // Fonction pour formatter les réponses (replies) d’un post
-        $formatReplies = function (Collection $repliesCollection) use ($user) {
+        $formatReplies = function ($repliesCollection) use ($user) {
             return array_map(function (Post $replyPost) use ($user) {
                 $replyAuthor = $replyPost->getAuthor();
-
                 return [
                     'id' => $replyPost->getId(),
                     'content' => $replyPost->getContent(),
@@ -57,16 +41,13 @@ class PostController extends AbstractController
                     'authorId' => $replyAuthor->getId(),
                     'authorUsername' => $replyAuthor->getUsername(),
                     'media' => $replyPost->getMedia() ?? [],
-                    'isCensored' => $replyPost->isCensored(), // ✅ Ajout ici
+                    'isCensored' => $replyPost->isCensored(),
                 ];
             }, $repliesCollection->toArray());
         };
 
-        // Fonction pour formatter chaque post parent avec ses replies
         $postsData = array_map(function (Post $post) use ($user, $formatReplies) {
             $author = $post->getAuthor();
-            $replies = $post->getReplies();
-
             return [
                 'id' => $post->getId(),
                 'content' => $post->getContent(),
@@ -76,66 +57,59 @@ class PostController extends AbstractController
                 'authorId' => $author->getId(),
                 'authorUsername' => $author->getUsername(),
                 'media' => $post->getMedia() ?? [],
-                'replies' => $formatReplies($replies),
-                'isCensored' => $post->isCensored(), // ✅ Ajout ici
+                'replies' => $formatReplies($post->getReplies()),
+                'isCensored' => $post->isCensored(),
             ];
         }, $posts);
 
         return new JsonResponse(['posts' => $postsData], JsonResponse::HTTP_OK);
     }
 
-    /**
-     * Crée un nouveau post ou une réponse si "parent_id" est fourni
-     */
     #[Route('/api/posts', methods: ['POST'], defaults: ["_format" => "json"])]
-    public function createPost(
-        Request $request,
-        EntityManagerInterface $entityManager,
-        UserRepository $userRepository,
-        PostRepository $postRepository
-    ): JsonResponse {
+    public function createPost(Request $request, EntityManagerInterface $entityManager, UserRepository $userRepository, PostRepository $postRepository): JsonResponse
+    {
         $user = $this->getUserFromBearer($request, $userRepository);
         if (!$user) {
             return new JsonResponse(['error' => 'User not authenticated'], JsonResponse::HTTP_UNAUTHORIZED);
         }
 
-        // Récupère le contenu du post
+        $parentId = $request->request->get('parent_id');
+        $parentPost = $parentId ? $postRepository->find($parentId) : null;
+
+        if ($parentId && !$parentPost) {
+            return new JsonResponse(['error' => 'Parent post not found'], JsonResponse::HTTP_NOT_FOUND);
+        }
+
+        // 🔥 AJOUT : vérifier mode lecture seule
+        if ($parentPost && $parentPost->getAuthor()->isReadOnlyMode()) {
+            return new JsonResponse(['error' => 'Impossible de répondre à un post dont l\'auteur est en mode lecture seule.'], JsonResponse::HTTP_FORBIDDEN);
+        }
+
+        if ($user->isReadOnlyMode()) {
+            return new JsonResponse(['error' => 'Votre profil est en mode lecture seule. Impossible de publier.'], JsonResponse::HTTP_FORBIDDEN);
+        }
+
         $content = $request->request->get('content');
         if (!$content) {
             return new JsonResponse(['error' => 'Content is required'], JsonResponse::HTTP_BAD_REQUEST);
         }
 
-        // Vérifie si un parent_id est fourni (pour faire une "réponse")
-        $parentId = $request->request->get('parent_id'); // <-- CHAMP IMPORTANT
-        $parentPost = null;
-
-        if ($parentId) {
-            $parentPost = $postRepository->find($parentId);
-            if (!$parentPost) {
-                return new JsonResponse(['error' => 'Parent post not found'], JsonResponse::HTTP_NOT_FOUND);
-            }
-        }
-
-        // On crée un nouveau Post
         $post = new Post();
         $post->setContent($content);
         $post->setCreatedAt(new \DateTime());
         $post->setAuthor($user);
 
-        // On rattache le parent si c’est un reply
         if ($parentPost) {
             $post->setParent($parentPost);
         }
 
-        // Gestion des fichiers média
         $mediaFiles = $request->files->get('mediaFiles');
         $mediaPaths = [];
 
         if ($mediaFiles) {
             foreach ($mediaFiles as $file) {
-                if ($file instanceof UploadedFile) {
+                if ($file instanceof \Symfony\Component\HttpFoundation\File\UploadedFile) {
                     $newFilename = uniqid() . '.' . $file->guessExtension();
-                    // media_directory doit être configuré dans services.yaml ou parameters
                     $destination = $this->getParameter('media_directory');
                     $file->move($destination, $newFilename);
                     $mediaPaths[] = '/uploads/media/' . $newFilename;
@@ -157,17 +131,9 @@ class PostController extends AbstractController
         ], JsonResponse::HTTP_CREATED);
     }
 
-    /**
-     * Like un post
-     */
     #[Route('/api/posts/{id}/like', methods: ['POST'], requirements: ['id' => '\d+'])]
-    public function likePost(
-        int $id,
-        PostRepository $postRepository,
-        EntityManagerInterface $entityManager,
-        Request $request,
-        UserRepository $userRepository
-    ): JsonResponse {
+    public function likePost(int $id, PostRepository $postRepository, EntityManagerInterface $entityManager, Request $request, UserRepository $userRepository): JsonResponse
+    {
         $user = $this->getUserFromBearer($request, $userRepository);
         if (!$user) {
             return new JsonResponse(['error' => 'User not authenticated'], JsonResponse::HTTP_UNAUTHORIZED);
@@ -176,6 +142,11 @@ class PostController extends AbstractController
         $post = $postRepository->find($id);
         if (!$post) {
             return new JsonResponse(['error' => 'Post not found'], JsonResponse::HTTP_NOT_FOUND);
+        }
+
+        // 🔥 AJOUT : vérifier mode lecture seule auteur
+        if ($post->getAuthor()->isReadOnlyMode()) {
+            return new JsonResponse(['error' => 'Impossible de liker un post dont l\'auteur est en mode lecture seule.'], JsonResponse::HTTP_FORBIDDEN);
         }
 
         $post->addLike($user);
@@ -187,17 +158,9 @@ class PostController extends AbstractController
         ], JsonResponse::HTTP_OK);
     }
 
-    /**
-     * Unlike un post
-     */
     #[Route('/api/posts/{id}/unlike', methods: ['DELETE'], requirements: ['id' => '\d+'])]
-    public function unlikePost(
-        int $id,
-        PostRepository $postRepository,
-        EntityManagerInterface $entityManager,
-        Request $request,
-        UserRepository $userRepository
-    ): JsonResponse {
+    public function unlikePost(int $id, PostRepository $postRepository, EntityManagerInterface $entityManager, Request $request, UserRepository $userRepository): JsonResponse
+    {
         $user = $this->getUserFromBearer($request, $userRepository);
         if (!$user) {
             return new JsonResponse(['error' => 'User not authenticated'], JsonResponse::HTTP_UNAUTHORIZED);
@@ -206,6 +169,11 @@ class PostController extends AbstractController
         $post = $postRepository->find($id);
         if (!$post) {
             return new JsonResponse(['error' => 'Post not found'], JsonResponse::HTTP_NOT_FOUND);
+        }
+
+        // 🔥 AJOUT : vérifier mode lecture seule auteur
+        if ($post->getAuthor()->isReadOnlyMode()) {
+            return new JsonResponse(['error' => 'Impossible de retirer un like sur un post dont l\'auteur est en mode lecture seule.'], JsonResponse::HTTP_FORBIDDEN);
         }
 
         $post->removeLike($user);

@@ -5,6 +5,7 @@ namespace App\Controller;
 
 use App\Entity\Post;
 use App\Entity\User;
+use App\Entity\Block;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -18,19 +19,20 @@ class ProfileController extends AbstractController
     public function getCurrentUser(Request $request, EntityManagerInterface $entityManager): JsonResponse
     {
         $token = $request->headers->get('Authorization');
-        $token = str_replace('Bearer ', '', $token); // Retire "Bearer " pour ne garder que le token
+        $token = str_replace('Bearer ', '', $token);
 
         if (!$token) {
             return new JsonResponse(['message' => 'Token manquant'], 401);
         }
 
-        $user = $entityManager->getRepository(\App\Entity\User::class)->findOneBy(['apiToken' => $token]);
+        $user = $entityManager->getRepository(User::class)->findOneBy(['apiToken' => $token]);
 
         if (!$user) {
             return new JsonResponse(['message' => 'Utilisateur non trouvé'], 401);
         }
 
         return $this->json([
+            'id' => $user->getId(),
             'username' => $user->getUsername(),
             'email' => $user->getEmail(),
             'roles' => $user->getRoles(),
@@ -39,54 +41,47 @@ class ProfileController extends AbstractController
             'banner' => $user->getBanner(),
             'location' => $user->getLocation(),
             'website' => $user->getWebsite(),
+            'readOnlyMode' => $user->isReadOnlyMode(), // 🔥 ajout lecture seule
         ]);
     }
-
     #[Route('/api/profile/{username}', name: 'api_profile', methods: ['GET'])]
     public function getProfile(string $username, EntityManagerInterface $entityManager, Request $request): JsonResponse
     {
-        $user = $entityManager->getRepository(\App\Entity\User::class)->findOneBy(['username' => $username]);
+        $user = $entityManager->getRepository(User::class)->findOneBy(['username' => $username]);
 
         if (!$user) {
             return new JsonResponse(['message' => 'Profil non trouvé'], 404);
         }
 
         try {
-            $posts = $entityManager->getRepository(\App\Entity\Post::class)
+            $posts = $entityManager->getRepository(Post::class)
                 ->findBy(['author' => $user], ['created_at' => 'DESC']);
 
-            $postsData = array_map(function ($post) use ($request, $entityManager) {
-                $likes = count($post->getLikes());
-                $media = $post->getMedia() ?? [];
-                $author = $post->getAuthor();
-
-                $authHeader = $request->headers->get('Authorization');
-                $token = $authHeader ? str_replace('Bearer ', '', $authHeader) : null;
-                $currentUser = $token ? $entityManager->getRepository(\App\Entity\User::class)->findOneBy(['apiToken' => $token]) : null;
-
+            $postsData = array_map(function ($post) {
                 return [
                     'id' => $post->getId(),
                     'content' => $post->getContent(),
                     'created_at' => $post->getCreatedAt()->format('Y-m-d H:i:s'),
-                    'likes' => $likes,
-                    'authorId' => $author->getId(),
-                    'authorUsername' => $author->getUsername(),
-                    'media' => $media,
+                    'likes' => count($post->getLikes()),
+                    'authorId' => $post->getAuthor()->getId(),
+                    'authorUsername' => $post->getAuthor()->getUsername(),
+                    'media' => $post->getMedia() ?? [],
                 ];
             }, $posts);
 
             return $this->json([
+                'id' => $user->getId(),
                 'username' => $user->getUsername(),
                 'bio' => $user->getBio(),
                 'profilePicture' => $user->getProfilePicture(),
                 'banner' => $user->getBanner(),
                 'location' => $user->getLocation(),
                 'website' => $user->getWebsite(),
+                'readOnlyMode' => $user->isReadOnlyMode(), // 🔥 ajout lecture seule
                 'posts' => $postsData,
-                'id' => $user->getId(),
             ]);
         } catch (\Exception $e) {
-            return new JsonResponse(['message' => 'Erreur lors de la récupération des posts: ' . $e->getMessage()], 500);
+            return new JsonResponse(['message' => 'Erreur: ' . $e->getMessage()], 500);
         }
     }
 
@@ -265,5 +260,81 @@ class ProfileController extends AbstractController
             'authorUsername' => $post->getAuthor()->getUsername(),
             'media' => $post->getMedia() ?? [],
         ]);
+    }
+    #[Route('/api/profile/{username}/readonly', name: 'api_toggle_readonly', methods: ['PUT'])]
+    public function toggleReadOnly(string $username, Request $request, EntityManagerInterface $entityManager): JsonResponse
+    {
+        $token = $request->headers->get('Authorization');
+        $token = str_replace('Bearer ', '', $token);
+
+        $currentUser = $entityManager->getRepository(User::class)->findOneBy(['apiToken' => $token]);
+        if (!$currentUser || $currentUser->getUsername() !== $username) {
+            return new JsonResponse(['message' => 'Accès non autorisé'], 403);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        $readOnlyMode = $data['readOnlyMode'] ?? false;
+
+        $currentUser->setReadOnlyMode($readOnlyMode);
+        $entityManager->persist($currentUser);
+        $entityManager->flush();
+
+        return $this->json([
+            'username' => $currentUser->getUsername(),
+            'readOnlyMode' => $currentUser->isReadOnlyMode(),
+        ]);
+    }
+
+    #[Route('/api/users/{id}/block', name: 'api_block_user', methods: ['POST'])]
+    public function blockUser(int $id, Request $request, EntityManagerInterface $entityManager): JsonResponse
+    {
+        $token = $request->headers->get('Authorization');
+        $token = str_replace('Bearer ', '', $token);
+
+        $currentUser = $entityManager->getRepository(User::class)->findOneBy(['apiToken' => $token]);
+        $userToBlock = $entityManager->getRepository(User::class)->find($id);
+
+        if (!$currentUser || !$userToBlock) {
+            return new JsonResponse(['message' => 'Utilisateur non trouvé'], 404);
+        }
+
+        if ($currentUser->getId() === $userToBlock->getId()) {
+            return new JsonResponse(['message' => 'Vous ne pouvez pas vous bloquer vous-même.'], 400);
+        }
+
+        $block = new Block();
+        $block->setBlocker($currentUser);
+        $block->setBlocked($userToBlock);
+
+        $entityManager->persist($block);
+        $entityManager->flush();
+
+        return new JsonResponse(['message' => 'Utilisateur bloqué avec succès.']);
+    }
+
+    #[Route('/api/users/{id}/unblock', name: 'api_unblock_user', methods: ['DELETE'])]
+    public function unblockUser(int $id, Request $request, EntityManagerInterface $entityManager): JsonResponse
+    {
+        $token = $request->headers->get('Authorization');
+        $token = str_replace('Bearer ', '', $token);
+
+        $currentUser = $entityManager->getRepository(User::class)->findOneBy(['apiToken' => $token]);
+        $userToUnblock = $entityManager->getRepository(User::class)->find($id);
+
+        if (!$currentUser || !$userToUnblock) {
+            return new JsonResponse(['message' => 'Utilisateur non trouvé'], 404);
+        }
+
+        $block = $entityManager->getRepository(Block::class)
+            ->findOneBy(['blocker' => $currentUser, 'blocked' => $userToUnblock]);
+
+        if (!$block) {
+            return new JsonResponse(['message' => 'Utilisateur non bloqué.'], 400);
+        }
+
+        $entityManager->remove($block);
+        $entityManager->flush();
+
+        return new JsonResponse(['message' => 'Utilisateur débloqué avec succès.']);
     }
 }
