@@ -4,12 +4,12 @@
 namespace App\Controller;
 
 use App\Repository\UserRepository;
+use App\Repository\PostRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
-use Symfony\Component\Routing\Annotation\Route;
-use App\Repository\PostRepository;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\Routing\Annotation\Route;
 
 class UserController extends AbstractController
 {
@@ -17,7 +17,6 @@ class UserController extends AbstractController
     #[Route('/api/admin', name: 'admin', methods: ["GET"])]
     public function getAdminDashboard(UserRepository $userRepository, PostRepository $postRepository): JsonResponse
     {
-        // 🔹 Récupération des utilisateurs
         $users = $userRepository->findAll();
         $userData = [];
 
@@ -34,8 +33,7 @@ class UserController extends AbstractController
             ];
         }
 
-        // 🔹 Récupération des posts avec auteur
-        $posts = $postRepository->findAllWithUser(); // tu dois avoir cette méthode dans PostRepository
+        $posts = $postRepository->findAllWithUser();
         $postData = [];
 
         foreach ($posts as $post) {
@@ -55,7 +53,6 @@ class UserController extends AbstractController
         ]);
     }
 
-
     #[Route("/api/admin/{id}", name: "api_user_edit", methods: ["PUT"])]
     public function editUser(int $id, Request $request, UserRepository $userRepository): JsonResponse
     {
@@ -66,7 +63,6 @@ class UserController extends AbstractController
             return new JsonResponse(['message' => 'Utilisateur non trouvé'], 404);
         }
 
-        // Modifier les champs
         if (isset($data['username'])) {
             $user->setUsername($data['username']);
         }
@@ -74,14 +70,12 @@ class UserController extends AbstractController
             $user->setEmail($data['email']);
         }
         if (isset($data['role'])) {
-            // On vérifie et met à jour les rôles
             $user->setRoles([$data['role']]);
         }
 
-        $userRepository->save($user, true); // Enregistrer les changements
+        $userRepository->save($user, true);
         return new JsonResponse(['message' => 'Utilisateur mis à jour'], 200);
     }
-
 
     #[Route('/api/admin/{id}/toggle-block', name: 'toggle_block_user', methods: ["POST"])]
     public function toggleBlockUser(int $id, UserRepository $userRepository, EntityManagerInterface $entityManager): JsonResponse
@@ -114,5 +108,33 @@ class UserController extends AbstractController
         $em->flush();
 
         return new JsonResponse(['message' => 'Post censuré']);
+    }
+
+    #[Route('/api/admin/post/{id}', name: 'delete_post', methods: ['DELETE'])]
+    public function deletePost(
+        int $id,
+        PostRepository $postRepository,
+        EntityManagerInterface $em
+    ): JsonResponse {
+        $post = $postRepository->find($id);
+
+        if (!$post) {
+            return new JsonResponse(['message' => 'Post non trouvé'], 404);
+        }
+
+        // 1. Supprimer tous les likes
+        $post->getLikes()->clear();
+
+        // 2. Supprimer toutes les réponses (réplies)
+        foreach ($post->getReplies() as $reply) {
+            $em->remove($reply);
+        }
+
+        // 3. Supprimer le post lui-même
+        $em->remove($post);
+
+        $em->flush();
+
+        return new JsonResponse(['message' => 'Post supprimé avec succès']);
     }
 }

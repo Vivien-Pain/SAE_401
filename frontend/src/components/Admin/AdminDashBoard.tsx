@@ -73,6 +73,22 @@ const AdminDashboard = () => {
     }
   };
 
+  const deletePost = async (postId: number) => {
+    try {
+      const response = await fetch(`http://localhost:8080/api/admin/post/${postId}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        setPosts(posts.filter(post => post.id !== postId));
+      } else {
+        console.error("Erreur suppression post");
+      }
+    } catch (error) {
+      console.error("Erreur réseau:", error);
+    }
+  };
+
   return (
     <div className="p-4 md:p-6">
       <h1 className="text-2xl font-bold mb-6 text-center">Dashboard Admin</h1>
@@ -127,14 +143,22 @@ const AdminDashboard = () => {
                   ? "⚠️ Ce message enfreint les conditions d’utilisation de la plateforme"
                   : post.content}
               </p>
-              {!post.isCensored && (
+              <div className="flex space-x-2">
+                {!post.isCensored && (
+                  <button
+                    onClick={() => censorPost(post.id)}
+                    className="bg-red-500 text-white px-3 py-1 rounded"
+                  >
+                    Censurer
+                  </button>
+                )}
                 <button
-                  onClick={() => censorPost(post.id)}
-                  className="bg-red-500 text-white px-3 py-1 rounded"
+                  onClick={() => deletePost(post.id)}
+                  className="bg-gray-700 text-white px-3 py-1 rounded"
                 >
-                  Censurer
+                  Supprimer
                 </button>
-              )}
+              </div>
             </li>
           ))}
         </ul>
