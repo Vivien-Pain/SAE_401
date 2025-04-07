@@ -6,6 +6,7 @@ import App from "./App.tsx";
 import Home from "./components/Home/Home.tsx"; 
 import AdminDashBoard from "./components/Admin/AdminDashBoard.tsx"; 
 import ProfilePage from "./components/Profile/ProfilePage.tsx";
+import HashtagPage from "./components/Hashtag/Hashtag.tsx";
 
 
 createRoot(document.getElementById("root")!).render(
@@ -16,6 +17,7 @@ createRoot(document.getElementById("root")!).render(
         <Route path="/home" element={<Home />} /> 
         <Route path="/admin" element={<AdminDashBoard />} /> 
         <Route path="/profile/:username" element={<ProfilePage />} />
+        <Route path="/hashtag/:hashtag" element={<HashtagPage />} />
       </Routes>
     </Router>
   </StrictMode>

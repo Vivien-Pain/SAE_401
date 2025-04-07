@@ -11,6 +11,8 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
+use App\Entity\Subscription;
+
 
 
 class ProfileController extends AbstractController
@@ -41,9 +43,10 @@ class ProfileController extends AbstractController
             'banner' => $user->getBanner(),
             'location' => $user->getLocation(),
             'website' => $user->getWebsite(),
-            'readOnlyMode' => $user->isReadOnlyMode(), // 🔥 ajout lecture seule
+            'readOnlyMode' => $user->isReadOnlyMode(),
         ]);
     }
+
     #[Route('/api/profile/{username}', name: 'api_profile', methods: ['GET'])]
     public function getProfile(string $username, EntityManagerInterface $entityManager, Request $request): JsonResponse
     {
@@ -55,7 +58,10 @@ class ProfileController extends AbstractController
 
         try {
             $posts = $entityManager->getRepository(Post::class)
-                ->findBy(['author' => $user], ['created_at' => 'DESC']);
+                ->findBy(['author' => $user, 'parent' => null], ['created_at' => 'DESC']);
+
+            $pinnedPost = $entityManager->getRepository(Post::class)
+                ->findOneBy(['author' => $user, 'isPinned' => true]);
 
             $postsData = array_map(function ($post) {
                 return [
@@ -66,6 +72,7 @@ class ProfileController extends AbstractController
                     'authorId' => $post->getAuthor()->getId(),
                     'authorUsername' => $post->getAuthor()->getUsername(),
                     'media' => $post->getMedia() ?? [],
+                    'isPinned' => $post->isPinned(),
                 ];
             }, $posts);
 
@@ -77,137 +84,22 @@ class ProfileController extends AbstractController
                 'banner' => $user->getBanner(),
                 'location' => $user->getLocation(),
                 'website' => $user->getWebsite(),
-                'readOnlyMode' => $user->isReadOnlyMode(), // 🔥 ajout lecture seule
+                'readOnlyMode' => $user->isReadOnlyMode(),
                 'posts' => $postsData,
+                'pinnedPost' => $pinnedPost ? [
+                    'id' => $pinnedPost->getId(),
+                    'content' => $pinnedPost->getContent(),
+                    'created_at' => $pinnedPost->getCreatedAt()->format('Y-m-d H:i:s'),
+                    'likes' => count($pinnedPost->getLikes()),
+                    'authorId' => $pinnedPost->getAuthor()->getId(),
+                    'authorUsername' => $pinnedPost->getAuthor()->getUsername(),
+                    'media' => $pinnedPost->getMedia() ?? [],
+                    'isPinned' => true,
+                ] : null,
             ]);
         } catch (\Exception $e) {
             return new JsonResponse(['message' => 'Erreur: ' . $e->getMessage()], 500);
         }
-    }
-
-    #[Route('/api/profile/{username}/follow', name: 'api_follow_user', methods: ['POST'])]
-    public function followUser(string $username, EntityManagerInterface $entityManager, Request $request): JsonResponse
-    {
-        $token = $request->headers->get('Authorization');
-        $token = str_replace('Bearer ', '', $token);
-
-        if (!$token) {
-            return new JsonResponse(['message' => 'Token manquant'], 401);
-        }
-
-        $currentUser = $entityManager->getRepository(\App\Entity\User::class)->findOneBy(['apiToken' => $token]);
-        $userToFollow = $entityManager->getRepository(\App\Entity\User::class)->findOneBy(['username' => $username]);
-
-        if (!$currentUser || !$userToFollow) {
-            return new JsonResponse(['message' => 'Utilisateur non trouvé'], 404);
-        }
-
-        if ($currentUser === $userToFollow) {
-            return new JsonResponse(['message' => 'Vous ne pouvez pas vous suivre vous-même'], 400);
-        }
-
-        // 🔐 Vérifie si tu es bloqué par la personne que tu veux suivre
-        $blockRepo = $entityManager->getRepository(\App\Entity\Block::class);
-        $isBlocked = $blockRepo->findOneBy([
-            'blocker' => $userToFollow,
-            'blocked' => $currentUser,
-        ]);
-
-        if ($isBlocked) {
-            return new JsonResponse(['message' => 'Vous ne pouvez pas suivre cet utilisateur.'], 403);
-        }
-
-        try {
-            $subscription = new \App\Entity\Subscription();
-            $subscription->setFollower($currentUser);
-            $subscription->setFollowed($userToFollow);
-
-            $entityManager->persist($subscription);
-            $entityManager->flush();
-
-            return new JsonResponse(['message' => 'Utilisateur suivi avec succès']);
-        } catch (\Exception $e) {
-            return new JsonResponse(['message' => 'Erreur : ' . $e->getMessage()], 500);
-        }
-    }
-    #[Route('/api/profile/{username}/unfollow', name: 'api_unfollow_user', methods: ['DELETE'])]
-    public function unfollowUser(string $username, EntityManagerInterface $entityManager, Request $request): JsonResponse
-    {
-        $token = $request->headers->get('Authorization');
-        $token = str_replace('Bearer ', '', $token);
-
-        if (!$token) {
-            return new JsonResponse(['message' => 'Token manquant'], 401);
-        }
-
-        $currentUser = $entityManager->getRepository(\App\Entity\User::class)->findOneBy(['apiToken' => $token]);
-
-        if (!$currentUser) {
-            return new JsonResponse(['message' => 'Utilisateur non authentifié'], 401);
-        }
-
-        $userToUnfollow = $entityManager->getRepository(\App\Entity\User::class)->findOneBy(['username' => $username]);
-
-        if (!$userToUnfollow) {
-            return new JsonResponse(['message' => 'Utilisateur à ne plus suivre non trouvé'], 404);
-        }
-
-        if ($currentUser === $userToUnfollow) {
-            return new JsonResponse(['message' => 'Vous ne pouvez pas vous désabonner de vous-même'], 400);
-        }
-
-        try {
-            $subscription = $entityManager->getRepository(\App\Entity\Subscription::class)
-                ->findOneBy(['follower' => $currentUser, 'followed' => $userToUnfollow]);
-
-            if (!$subscription) {
-                return new JsonResponse(['message' => 'Vous ne suivez pas cet utilisateur'], 400);
-            }
-
-            $entityManager->remove($subscription);
-            $entityManager->flush();
-
-            return new JsonResponse(['message' => 'Utilisateur désabonné avec succès']);
-        } catch (\Exception $e) {
-            return new JsonResponse(['message' => 'Erreur lors du désabonnement de l\'utilisateur: ' . $e->getMessage()], 500);
-        }
-    }
-
-    #[Route('/api/profile/{username}/edit', name: 'api_edit_profile', methods: ['PUT'])]
-    public function editProfile(string $username, Request $request, EntityManagerInterface $entityManager): JsonResponse
-    {
-        $token = $request->headers->get('Authorization');
-        $token = str_replace('Bearer ', '', $token);
-
-        if (!$token) {
-            return new JsonResponse(['message' => 'Token manquant'], 401);
-        }
-
-        $currentUser = $entityManager->getRepository(\App\Entity\User::class)->findOneBy(['apiToken' => $token]);
-
-        if (!$currentUser || $currentUser->getUsername() !== $username) {
-            return new JsonResponse(['message' => 'Accès non autorisé'], 403);
-        }
-
-        $data = json_decode($request->getContent(), true);
-
-        $currentUser->setBio($data['bio'] ?? $currentUser->getBio());
-        $currentUser->setProfilePicture($data['profilePicture'] ?? $currentUser->getProfilePicture());
-        $currentUser->setBanner($data['banner'] ?? $currentUser->getBanner());
-        $currentUser->setLocation($data['location'] ?? $currentUser->getLocation());
-        $currentUser->setWebsite($data['website'] ?? $currentUser->getWebsite());
-
-        $entityManager->persist($currentUser);
-        $entityManager->flush();
-
-        return new JsonResponse([
-            'username' => $currentUser->getUsername(),
-            'bio' => $currentUser->getBio(),
-            'profilePicture' => $currentUser->getProfilePicture(),
-            'banner' => $currentUser->getBanner(),
-            'location' => $currentUser->getLocation(),
-            'website' => $currentUser->getWebsite(),
-        ]);
     }
     #[Route('/api/posts/{id}', name: 'api_edit_post', methods: ['PUT'])]
     public function editPost(int $id, Request $request, EntityManagerInterface $entityManager): JsonResponse
@@ -336,5 +228,139 @@ class ProfileController extends AbstractController
         $entityManager->flush();
 
         return new JsonResponse(['message' => 'Utilisateur débloqué avec succès.']);
+    }
+
+
+    #[Route('/api/posts/{id}/pin', name: 'api_pin_post', methods: ['POST'])]
+    public function pinPost(int $id, EntityManagerInterface $entityManager, Request $request): JsonResponse
+    {
+        $token = $request->headers->get('Authorization');
+        $token = str_replace('Bearer ', '', $token);
+
+        if (!$token) {
+            return new JsonResponse(['message' => 'Token manquant'], 401);
+        }
+
+        $user = $entityManager->getRepository(User::class)->findOneBy(['apiToken' => $token]);
+        if (!$user) {
+            return new JsonResponse(['message' => 'Utilisateur non trouvé'], 401);
+        }
+
+        $post = $entityManager->getRepository(Post::class)->find($id);
+
+        if (!$post || $post->getAuthor()->getId() !== $user->getId()) {
+            return new JsonResponse(['message' => 'Post introuvable ou non autorisé'], 403);
+        }
+
+        // Retirer éventuellement l'ancien pinned
+        $oldPinned = $entityManager->getRepository(Post::class)
+            ->findOneBy(['author' => $user, 'isPinned' => true]);
+
+        if ($oldPinned) {
+            $oldPinned->setIsPinned(false);
+            $entityManager->persist($oldPinned);
+        }
+
+        $post->setIsPinned(true);
+        $entityManager->persist($post);
+        $entityManager->flush();
+
+        return new JsonResponse(['message' => 'Post épinglé avec succès']);
+    }
+
+    #[Route('/api/posts/{id}/unpin', name: 'api_unpin_post', methods: ['POST'])]
+    public function unpinPost(int $id, EntityManagerInterface $entityManager, Request $request): JsonResponse
+    {
+        $token = $request->headers->get('Authorization');
+        $token = str_replace('Bearer ', '', $token);
+
+        if (!$token) {
+            return new JsonResponse(['message' => 'Token manquant'], 401);
+        }
+
+        $user = $entityManager->getRepository(User::class)->findOneBy(['apiToken' => $token]);
+        if (!$user) {
+            return new JsonResponse(['message' => 'Utilisateur non trouvé'], 401);
+        }
+
+        $post = $entityManager->getRepository(Post::class)->find($id);
+
+        if (!$post || $post->getAuthor()->getId() !== $user->getId()) {
+            return new JsonResponse(['message' => 'Post introuvable ou non autorisé'], 403);
+        }
+
+        if ($post->isPinned()) {
+            $post->setIsPinned(false);
+            $entityManager->persist($post);
+            $entityManager->flush();
+        }
+
+        return new JsonResponse(['message' => 'Post désépinglé avec succès']);
+    }
+
+    #[Route('/api/profile/{username}/follow', name: 'api_follow_user', methods: ['POST'])]
+    public function followUser(string $username, Request $request, EntityManagerInterface $entityManager): JsonResponse
+    {
+        $token = $request->headers->get('Authorization');
+        $token = str_replace('Bearer ', '', $token);
+        if (!$token) {
+            return new JsonResponse(['message' => 'Token manquant'], 401);
+        }
+
+        $currentUser = $entityManager->getRepository(User::class)->findOneBy(['apiToken' => $token]);
+        $userToFollow = $entityManager->getRepository(User::class)->findOneBy(['username' => $username]);
+
+        if (!$currentUser || !$userToFollow) {
+            return new JsonResponse(['message' => 'Utilisateur non trouvé'], 404);
+        }
+
+        if ($currentUser === $userToFollow) {
+            return new JsonResponse(['message' => 'Vous ne pouvez pas vous suivre vous-même.'], 400);
+        }
+
+        $existingSubscription = $entityManager->getRepository(Subscription::class)
+            ->findOneBy(['follower' => $currentUser, 'followed' => $userToFollow]);
+
+        if ($existingSubscription) {
+            return new JsonResponse(['message' => 'Déjà abonné.'], 400);
+        }
+
+        $subscription = new Subscription();
+        $subscription->setFollower($currentUser);
+        $subscription->setFollowed($userToFollow);
+
+        $entityManager->persist($subscription);
+        $entityManager->flush();
+
+        return new JsonResponse(['message' => 'Utilisateur suivi avec succès.']);
+    }
+
+    #[Route('/api/profile/{username}/unfollow', name: 'api_unfollow_user', methods: ['DELETE'])]
+    public function unfollowUser(string $username, Request $request, EntityManagerInterface $entityManager): JsonResponse
+    {
+        $token = $request->headers->get('Authorization');
+        $token = str_replace('Bearer ', '', $token);
+        if (!$token) {
+            return new JsonResponse(['message' => 'Token manquant'], 401);
+        }
+
+        $currentUser = $entityManager->getRepository(User::class)->findOneBy(['apiToken' => $token]);
+        $userToUnfollow = $entityManager->getRepository(User::class)->findOneBy(['username' => $username]);
+
+        if (!$currentUser || !$userToUnfollow) {
+            return new JsonResponse(['message' => 'Utilisateur non trouvé'], 404);
+        }
+
+        $subscription = $entityManager->getRepository(Subscription::class)
+            ->findOneBy(['follower' => $currentUser, 'followed' => $userToUnfollow]);
+
+        if (!$subscription) {
+            return new JsonResponse(['message' => 'Vous ne suivez pas cet utilisateur.'], 400);
+        }
+
+        $entityManager->remove($subscription);
+        $entityManager->flush();
+
+        return new JsonResponse(['message' => 'Désabonnement réussi.']);
     }
 }

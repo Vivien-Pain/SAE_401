@@ -28,6 +28,38 @@ const formatDate = (date: string) => {
   return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()} ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}:${d.getSeconds().toString().padStart(2, '0')}`;
 };
 
+// Nouvelle fonction pour parser le contenu et générer liens hashtag/mention
+const parseContent = (text: string) => {
+  const parts = text.split(/(\s+)/); // Garde les espaces pour conserver la mise en forme
+  return parts.map((part, index) => {
+    if (part.startsWith('#')) {
+      const tag = part.substring(1);
+      return (
+        <a
+          key={index}
+          href={`/hashtag/${tag}`}
+          className="text-blue-500 hover:underline font-semibold"
+        >
+          {part}
+        </a>
+      );
+    } else if (part.startsWith('@')) {
+      const username = part.substring(1);
+      return (
+        <a
+          key={index}
+          href={`/profile/${username}`}
+          className="text-purple-500 hover:underline font-semibold"
+        >
+          {part}
+        </a>
+      );
+    } else {
+      return part;
+    }
+  });
+};
+
 const Post = ({
   content,
   created_at,
@@ -35,7 +67,6 @@ const Post = ({
   likes,
   isLiked,
   authorId,
-  authorUsername,
   media,
   replies: initialReplies = [],
   isCensored,
@@ -44,7 +75,7 @@ const Post = ({
   const [liked, setLiked] = useState<boolean>(isLiked);
   const [authorProfile, setAuthorProfile] = useState<{ username: string; profilePicture: string } | null>(null);
   const [currentUser, setCurrentUser] = useState<{ username: string; id: number; readOnlyMode: boolean } | null>(null);
-  const [isBlockedByAuthor, setIsBlockedByAuthor] = useState(false);
+  const [isBlockedByAuthor] = useState(false);
   const [showReplyField, setShowReplyField] = useState(false);
   const [replyContent, setReplyContent] = useState('');
   const [replies, setReplies] = useState<Reply[]>(initialReplies);
@@ -153,13 +184,13 @@ const Post = ({
         </div>
       </div>
 
-      <p className="mb-4 text-gray-800">
+      <div className="mb-4 text-gray-800 break-words">
         {isBlockedByAuthor
           ? "Ce contenu est masqué car vous êtes bloqué par l'auteur."
           : isCensored
           ? "⚠️ Ce message enfreint les conditions d’utilisation de la plateforme."
-          : content}
-      </p>
+          : parseContent(content)}
+      </div>
 
       {media && media.length > 0 && !isCensored && (
         <div className="mb-4">

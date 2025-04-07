@@ -22,6 +22,9 @@ class Post
     #[Groups(['post'])]
     private string $content;
 
+    #[ORM\Column(type: 'boolean')]
+    private bool $isPinned = false;
+
     #[ORM\Column(type: 'datetime')]
     #[Groups(['post'])]
     private \DateTimeInterface $created_at;
@@ -170,6 +173,17 @@ class Post
     public function setIsCensored(bool $isCensored): self
     {
         $this->isCensored = $isCensored;
+        return $this;
+    }
+
+    public function isPinned(): bool
+    {
+        return $this->isPinned;
+    }
+
+    public function setIsPinned(bool $isPinned): self
+    {
+        $this->isPinned = $isPinned;
         return $this;
     }
 }

@@ -261,4 +261,63 @@ class PostController extends AbstractController
 
         return new JsonResponse($data);
     }
+
+    #[Route('/api/posts/search', name: 'api_posts_search', methods: ['GET'])]
+    public function searchPosts(Request $request, EntityManagerInterface $em): JsonResponse
+    {
+        $query = $request->query->get('q', '');
+
+        $posts = $em->getRepository(Post::class)->createQueryBuilder('p')
+            ->leftJoin('p.author', 'a')
+            ->where('p.content LIKE :query OR a.username LIKE :query')
+            ->setParameter('query', '%' . $query . '%')
+            ->orderBy('p.created_at', 'DESC')
+            ->getQuery()
+            ->getResult();
+
+        $data = array_map(function (Post $post) {
+            return [
+                'id' => $post->getId(),
+                'content' => $post->getContent(),
+                'created_at' => $post->getCreatedAt()->format('Y-m-d H:i:s'),
+                'likes' => count($post->getLikes()),
+                'isLiked' => false, // Tu peux améliorer plus tard avec le user connecté
+                'authorId' => $post->getAuthor()?->getId(),
+                'authorUsername' => $post->getAuthor()?->getUsername(),
+                'media' => [], // Tu peux ajouter les médias si besoin
+                'replies' => [], // Idem pour les replies
+                'isCensored' => $post->isCensored(),
+            ];
+        }, $posts);
+
+        return new JsonResponse(['posts' => $data]);
+    }
+
+    #[Route('/api/hashtag/{hashtag}', name: 'api_posts_by_hashtag', methods: ['GET'])]
+    public function getPostsByHashtag(string $hashtag, EntityManagerInterface $em): JsonResponse
+    {
+        $posts = $em->getRepository(Post::class)->createQueryBuilder('p')
+            ->where('p.content LIKE :hashtag')
+            ->setParameter('hashtag', '%#' . $hashtag . '%')
+            ->orderBy('p.created_at', 'DESC')
+            ->getQuery()
+            ->getResult();
+
+        $data = array_map(function (Post $post) {
+            return [
+                'id' => $post->getId(),
+                'content' => $post->getContent(),
+                'created_at' => $post->getCreatedAt()->format('Y-m-d H:i:s'),
+                'likes' => count($post->getLikes()),
+                'isLiked' => false, // à améliorer avec l'utilisateur courant
+                'authorId' => $post->getAuthor()?->getId(),
+                'authorUsername' => $post->getAuthor()?->getUsername(),
+                'media' => [], // à compléter si besoin
+                'replies' => [],
+                'isCensored' => $post->isCensored(),
+            ];
+        }, $posts);
+
+        return new JsonResponse(['posts' => $data]);
+    }
 }

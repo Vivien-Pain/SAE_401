@@ -1,8 +1,10 @@
+// Home.tsx
 import { useState, useEffect } from "react";
 import NavBar from "../../ui/NavBar/NavBar";
 import PostModal from "../../ui/PostModal/PostModal";
 import Header from "../../ui/Header/Header";
 import Post from "../../ui/Post/Post";
+import Search from "../../ui/Search/Search"; // <-- AJOUT
 
 const Home = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -41,9 +43,13 @@ const Home = () => {
     fetchUser();
   }, []);
 
-  const fetchPosts = async () => {
+  const fetchPosts = async (query: string = "") => {
     try {
-      const response = await fetch("http://localhost:8080/api/posts");
+      const url = query
+        ? `http://localhost:8080/api/posts/search?q=${encodeURIComponent(query)}`
+        : "http://localhost:8080/api/posts";
+
+      const response = await fetch(url);
       if (!response.ok) {
         throw new Error(`Erreur ${response.status}: ${await response.text()}`);
       }
@@ -102,9 +108,17 @@ const Home = () => {
     }
   };
 
+  const handleSearch = (query: string) => {
+    fetchPosts(query);
+  };
+
   return (
     <div className="flex flex-col h-screen items-center">
       <Header username={user.username || "Invité"} />
+      
+      <div className="w-full max-w-md p-2">
+        <Search onSearch={handleSearch} />
+      </div>
 
       <div className="flex-grow w-full max-w-md space-y-4 p-4 overflow-auto">
         {posts.length > 0 ? (
