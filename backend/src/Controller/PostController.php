@@ -35,7 +35,6 @@ class PostController extends AbstractController
             ->getQuery()
             ->getResult();
 
-
         $formatReplies = function ($repliesCollection) use ($user) {
             return array_map(function (Post $replyPost) use ($user) {
                 $replyAuthor = $replyPost->getAuthor();
@@ -64,8 +63,9 @@ class PostController extends AbstractController
                 'authorId' => $author->getId(),
                 'authorUsername' => $author->getUsername(),
                 'media' => $post->getMedia() ?? [],
-                'replies' => $formatReplies($post->getReplies()),
+                'replies' => $post->isLocked() ? [] : $formatReplies($post->getReplies()),
                 'isCensored' => $post->isCensored(),
+                'isLocked' => $post->isLocked(),
             ];
         }, $posts);
 
@@ -391,5 +391,60 @@ class PostController extends AbstractController
             'message' => $comment ? 'Post retweeted with comment' : 'Post retweeted successfully',
             'retweetId' => $retweet->getId(),
         ], JsonResponse::HTTP_CREATED);
+    }
+    #[Route('/api/posts/{id}/lock', methods: ['POST'], requirements: ['id' => '\d+'])]
+    public function lockPost(
+        int $id,
+        PostRepository $postRepository,
+        EntityManagerInterface $entityManager,
+        Request $request,
+        UserRepository $userRepository
+    ): JsonResponse {
+        $user = $this->getUserFromBearer($request, $userRepository);
+        if (!$user) {
+            return new JsonResponse(['error' => 'User not authenticated'], JsonResponse::HTTP_UNAUTHORIZED);
+        }
+
+        $post = $postRepository->find($id);
+        if (!$post) {
+            return new JsonResponse(['error' => 'Post not found'], JsonResponse::HTTP_NOT_FOUND);
+        }
+
+        if ($post->getAuthor() !== $user) {
+            return new JsonResponse(['error' => 'Unauthorized'], JsonResponse::HTTP_FORBIDDEN);
+        }
+
+        $post->setLocked(true);
+        $entityManager->flush();
+
+        return new JsonResponse(['message' => 'Post locked successfully']);
+    }
+
+    #[Route('/api/posts/{id}/unlock', methods: ['POST'], requirements: ['id' => '\d+'])]
+    public function unlockPost(
+        int $id,
+        PostRepository $postRepository,
+        EntityManagerInterface $entityManager,
+        Request $request,
+        UserRepository $userRepository
+    ): JsonResponse {
+        $user = $this->getUserFromBearer($request, $userRepository);
+        if (!$user) {
+            return new JsonResponse(['error' => 'User not authenticated'], JsonResponse::HTTP_UNAUTHORIZED);
+        }
+
+        $post = $postRepository->find($id);
+        if (!$post) {
+            return new JsonResponse(['error' => 'Post not found'], JsonResponse::HTTP_NOT_FOUND);
+        }
+
+        if ($post->getAuthor() !== $user) {
+            return new JsonResponse(['error' => 'Unauthorized'], JsonResponse::HTTP_FORBIDDEN);
+        }
+
+        $post->setLocked(false);
+        $entityManager->flush();
+
+        return new JsonResponse(['message' => 'Post unlocked successfully']);
     }
 }

@@ -13,8 +13,6 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
 use App\Entity\Subscription;
 
-
-
 class ProfileController extends AbstractController
 {
     #[Route('/api/current_user', name: 'api_current_user', methods: ['GET'])]
@@ -101,6 +99,7 @@ class ProfileController extends AbstractController
             return new JsonResponse(['message' => 'Erreur: ' . $e->getMessage()], 500);
         }
     }
+
     #[Route('/api/posts/{id}', name: 'api_edit_post', methods: ['PUT'])]
     public function editPost(int $id, Request $request, EntityManagerInterface $entityManager): JsonResponse
     {
@@ -153,6 +152,7 @@ class ProfileController extends AbstractController
             'media' => $post->getMedia() ?? [],
         ]);
     }
+
     #[Route('/api/profile/{username}/readonly', name: 'api_toggle_readonly', methods: ['PUT'])]
     public function toggleReadOnly(string $username, Request $request, EntityManagerInterface $entityManager): JsonResponse
     {
@@ -229,7 +229,6 @@ class ProfileController extends AbstractController
 
         return new JsonResponse(['message' => 'Utilisateur débloqué avec succès.']);
     }
-
 
     #[Route('/api/posts/{id}/pin', name: 'api_pin_post', methods: ['POST'])]
     public function pinPost(int $id, EntityManagerInterface $entityManager, Request $request): JsonResponse
@@ -384,8 +383,6 @@ class ProfileController extends AbstractController
         }
 
         // 2. Check that the current user *is* the one whose profile is being edited
-        //    or check if you allow admins, etc. For now, we’ll assume the user can only
-        //    edit *their own* profile.
         if ($currentUser->getUsername() !== $username) {
             return new JsonResponse(['message' => 'Accès non autorisé'], 403);
         }
@@ -397,7 +394,6 @@ class ProfileController extends AbstractController
         }
 
         // 4. Update fields on the User entity
-        //    For example, if in your `User` entity you have `setBio()`, `setProfilePicture()`, etc.
         if (isset($data['bio'])) {
             $currentUser->setBio($data['bio']);
         }

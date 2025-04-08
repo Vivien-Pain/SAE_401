@@ -4,6 +4,7 @@ namespace App\Entity;
 
 use App\Repository\SubscriptionRepository;
 use Doctrine\ORM\Mapping as ORM;
+use App\Entity\User;
 
 #[ORM\Entity(repositoryClass: SubscriptionRepository::class)]
 class Subscription
@@ -20,6 +21,9 @@ class Subscription
     #[ORM\ManyToOne(inversedBy: 'subscriptions')]
     #[ORM\JoinColumn(nullable: false)]
     private ?User $followed = null;
+
+    #[ORM\Column(type: 'boolean', options: ['default' => false])]
+    private $isApproved = false;
 
     public function getId(): ?int
     {
@@ -47,6 +51,17 @@ class Subscription
     {
         $this->followed = $followed;
 
+        return $this;
+    }
+
+    public function getIsApproved(): bool
+    {
+        return $this->isApproved;
+    }
+
+    public function setIsApproved(bool $isApproved): self
+    {
+        $this->isApproved = $isApproved;
         return $this;
     }
 }

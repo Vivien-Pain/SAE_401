@@ -55,6 +55,10 @@ class User implements PasswordAuthenticatedUserInterface
     #[ORM\Column(type: 'boolean', options: ['default' => false])]
     private bool $readOnlyMode = false;
 
+    // ✅ Nouveau champ pour le mode privé
+    #[ORM\Column(type: 'boolean', options: ['default' => false])]
+    private bool $isPrivate = false;
+
     #[ORM\OneToMany(mappedBy: "author", targetEntity: Post::class, cascade: ["remove"])]
     private Collection $posts;
 
@@ -77,12 +81,13 @@ class User implements PasswordAuthenticatedUserInterface
     public function __construct()
     {
         $this->posts = new ArrayCollection();
-        $this->likedPosts = new ArrayCollection(); // Initialisation de likedPosts
+        $this->likedPosts = new ArrayCollection();
         $this->followed = new ArrayCollection();
         $this->subscriptions = new ArrayCollection();
     }
 
-    // Getters et setters des champs existants
+    // ... [les getters et setters existants] ...
+
     public function getId(): ?int
     {
         return $this->id;
@@ -199,7 +204,41 @@ class User implements PasswordAuthenticatedUserInterface
         return $this;
     }
 
-    // Getters et setters pour la relation "likedPosts"
+    public function getIsBlocked(): bool
+    {
+        return $this->isBlocked;
+    }
+
+    public function setIsBlocked(bool $isBlocked): self
+    {
+        $this->isBlocked = $isBlocked;
+        return $this;
+    }
+
+    public function isReadOnlyMode(): bool
+    {
+        return $this->readOnlyMode;
+    }
+
+    public function setReadOnlyMode(bool $readOnlyMode): self
+    {
+        $this->readOnlyMode = $readOnlyMode;
+        return $this;
+    }
+
+    // Getters et setters pour le mode privé
+    public function isPrivate(): bool
+    {
+        return $this->isPrivate;
+    }
+
+    public function setIsPrivate(bool $isPrivate): self
+    {
+        $this->isPrivate = $isPrivate;
+        return $this;
+    }
+
+    // Getters et setters pour la relation likedPosts
     public function getLikedPosts(): Collection
     {
         return $this->likedPosts;
@@ -257,19 +296,16 @@ class User implements PasswordAuthenticatedUserInterface
             $this->followed->add($followed);
             $followed->setFollower($this);
         }
-
         return $this;
     }
 
     public function removeFollowed(Subscription $followed): static
     {
         if ($this->followed->removeElement($followed)) {
-            // set the owning side to null (unless already changed)
             if ($followed->getFollower() === $this) {
                 $followed->setFollower(null);
             }
         }
-
         return $this;
     }
 
@@ -287,41 +323,16 @@ class User implements PasswordAuthenticatedUserInterface
             $this->subscriptions->add($subscription);
             $subscription->setFollowed($this);
         }
-
         return $this;
     }
 
     public function removeSubscription(Subscription $subscription): static
     {
         if ($this->subscriptions->removeElement($subscription)) {
-            // set the owning side to null (unless already changed)
             if ($subscription->getFollowed() === $this) {
                 $subscription->setFollowed(null);
             }
         }
-
-        return $this;
-    }
-
-    public function getIsBlocked(): bool
-    {
-        return $this->isBlocked;
-    }
-
-    public function setIsBlocked(bool $isBlocked): self
-    {
-        $this->isBlocked = $isBlocked;
-        return $this;
-    }
-
-    public function isReadOnlyMode(): bool
-    {
-        return $this->readOnlyMode;
-    }
-
-    public function setReadOnlyMode(bool $readOnlyMode): self
-    {
-        $this->readOnlyMode = $readOnlyMode;
         return $this;
     }
 }

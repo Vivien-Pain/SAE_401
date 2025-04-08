@@ -191,6 +191,7 @@ export const postsListTitle = cva([
   "text-xl",
   "font-semibold",
   "mb-4",
+  "ml-4"
 ]);
 
 /**

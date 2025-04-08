@@ -52,6 +52,9 @@ class Post
     #[ORM\OneToMany(mappedBy: 'parent', targetEntity: Post::class, cascade: ['remove'])]
     private Collection $replies;
 
+    #[ORM\Column(type: 'boolean', options: ['default' => false])]
+    private bool $isLocked = false;
+
     public function __construct()
     {
         $this->likes = new ArrayCollection();
@@ -184,6 +187,17 @@ class Post
     public function setIsPinned(bool $isPinned): self
     {
         $this->isPinned = $isPinned;
+        return $this;
+    }
+
+    public function isLocked(): bool
+    {
+        return $this->isLocked;
+    }
+
+    public function setLocked(bool $locked): self
+    {
+        $this->isLocked = $locked;
         return $this;
     }
 }
