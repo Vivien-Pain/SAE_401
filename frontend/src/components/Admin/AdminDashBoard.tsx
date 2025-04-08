@@ -1,23 +1,4 @@
-// AdminDashboard.tsx
 import { useState, useEffect } from "react";
-import {
-  adminDashboardContainer,
-  adminDashboardTitle,
-  usersSectionContainer,
-  sectionSubtitle,
-  usersTable,
-  usersTableHeaderRow,
-  usersTableHeaderCell,
-  usersTableDataCell,
-  blockToggleButton,
-  postsList,
-  singlePostItem,
-  postMeta,
-  postContentText,
-  postButtonsContainer,
-  censorButton,
-  deleteButton,
-} from "./AdminDashBoardStyles";
 
 interface User {
   id: number;
@@ -83,9 +64,10 @@ const AdminDashboard = () => {
 
   const censorPost = async (postId: number) => {
     try {
-      const response = await fetch(`http://localhost:8080/api/admin/${postId}/censor`, {
-        method: "POST",
-      });
+      const response = await fetch(
+        `http://localhost:8080/api/admin/${postId}/censor`,
+        { method: "POST" }
+      );
 
       if (response.ok) {
         setPosts((prev) =>
@@ -103,9 +85,10 @@ const AdminDashboard = () => {
 
   const deletePost = async (postId: number) => {
     try {
-      const response = await fetch(`http://localhost:8080/api/admin/post/${postId}`, {
-        method: "DELETE",
-      });
+      const response = await fetch(
+        `http://localhost:8080/api/admin/post/${postId}`,
+        { method: "DELETE" }
+      );
 
       if (response.ok) {
         setPosts((prev) => prev.filter((post) => post.id !== postId));
@@ -118,37 +101,47 @@ const AdminDashboard = () => {
   };
 
   return (
-    <div className={adminDashboardContainer()}>
-      <h1 className={adminDashboardTitle()}>Dashboard Admin</h1>
+    <div className="p-4 md:p-6">
+      <h1 className="text-2xl font-bold mb-6 text-center">Dashboard Admin</h1>
 
       {/* Gestion des utilisateurs */}
-      <div className={usersSectionContainer()}>
-        <h2 className={sectionSubtitle()}>Gestion des utilisateurs</h2>
-        <table className={usersTable()}>
+      <div className="mb-10">
+        <h2 className="text-xl font-semibold mb-4">Gestion des utilisateurs</h2>
+        <table className="w-full border-collapse border border-gray-300">
           <thead>
-            <tr className={usersTableHeaderRow()}>
-              <th className={usersTableHeaderCell()}>ID</th>
-              <th className={usersTableHeaderCell()}>Nom d'utilisateur</th>
-              <th className={usersTableHeaderCell()}>Email</th>
-              <th className={usersTableHeaderCell()}>Rôle</th>
-              <th className={usersTableHeaderCell()}>Statut</th>
-              <th className={usersTableHeaderCell()}>Actions</th>
+            <tr className="bg-gray-200">
+              <th className="border border-gray-300 p-2">ID</th>
+              <th className="border border-gray-300 p-2">Nom d'utilisateur</th>
+              <th className="border border-gray-300 p-2">Email</th>
+              <th className="border border-gray-300 p-2">Rôle</th>
+              <th className="border border-gray-300 p-2">Statut</th>
+              <th className="border border-gray-300 p-2">Actions</th>
             </tr>
           </thead>
           <tbody>
             {users.map((user) => (
               <tr key={user.id}>
-                <td className={usersTableDataCell()}>{user.id}</td>
-                <td className={usersTableDataCell()}>{user.username}</td>
-                <td className={usersTableDataCell()}>{user.email}</td>
-                <td className={usersTableDataCell()}>{user.role}</td>
-                <td className={usersTableDataCell()}>
+                <td className="border border-gray-300 p-2 text-center">
+                  {user.id}
+                </td>
+                <td className="border border-gray-300 p-2 text-center">
+                  {user.username}
+                </td>
+                <td className="border border-gray-300 p-2 text-center">
+                  {user.email}
+                </td>
+                <td className="border border-gray-300 p-2 text-center">
+                  {user.role}
+                </td>
+                <td className="border border-gray-300 p-2 text-center">
                   {user.isBlocked ? "Bloqué" : "Actif"}
                 </td>
-                <td className={usersTableDataCell()}>
+                <td className="border border-gray-300 p-2 text-center">
                   <button
                     onClick={() => toggleBlock(user.id)}
-                    className={blockToggleButton({ blocked: user.isBlocked })}
+                    className={`px-4 py-1 rounded text-white ${
+                      user.isBlocked ? "bg-red-500" : "bg-green-500"
+                    }`}
                   >
                     {user.isBlocked ? "Débloquer" : "Bloquer"}
                   </button>
@@ -161,28 +154,30 @@ const AdminDashboard = () => {
 
       {/* Modération des contenus */}
       <div>
-        <h2 className={sectionSubtitle()}>Modération des contenus</h2>
-        <ul className={postsList()}>
+        <h2 className="text-xl font-semibold mb-4">Modération des contenus</h2>
+        <ul className="space-y-4">
           {posts.map((post) => (
-            <li key={post.id} className={singlePostItem()}>
-              <div className={postMeta()}>Posté par {post.author.username}</div>
-              <p className={postContentText()}>
+            <li key={post.id} className="p-4 border rounded shadow">
+              <div className="text-sm text-gray-500">
+                Posté par {post.author.username}
+              </div>
+              <p className="text-md my-2">
                 {post.isCensored
                   ? "⚠️ Ce message enfreint les conditions d’utilisation de la plateforme"
                   : post.content}
               </p>
-              <div className={postButtonsContainer()}>
+              <div className="flex space-x-2">
                 {!post.isCensored && (
                   <button
                     onClick={() => censorPost(post.id)}
-                    className={censorButton()}
+                    className="bg-red-500 text-white px-3 py-1 rounded"
                   >
                     Censurer
                   </button>
                 )}
                 <button
                   onClick={() => deletePost(post.id)}
-                  className={deleteButton()}
+                  className="bg-gray-700 text-white px-3 py-1 rounded"
                 >
                   Supprimer
                 </button>

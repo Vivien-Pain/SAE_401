@@ -11,6 +11,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Routing\Annotation\Route;
+use App\Entity\Notification;
 
 class PostController extends AbstractController
 {
@@ -109,6 +110,14 @@ class PostController extends AbstractController
         if ($parentPost) {
             $post->setParent($parentPost);
         }
+        if ($parentPost && $parentPost->getAuthor() !== $user) {
+            $notification = new Notification();
+            $notification->setRecipient($parentPost->getAuthor());
+            $notification->setSender($user);
+            $notification->setType('reply');
+            $notification->setPostId($parentPost->getId());
+            $entityManager->persist($notification);
+        }
 
         $mediaFiles = $request->files->get('mediaFiles');
         $mediaPaths = [];
@@ -127,7 +136,20 @@ class PostController extends AbstractController
         if (!empty($mediaPaths)) {
             $post->setMedia($mediaPaths);
         }
+        preg_match_all('/@(\w+)/', $content, $matches);
+        $mentionedUsernames = $matches[1] ?? [];
 
+        foreach ($mentionedUsernames as $mentionedUsername) {
+            $mentionedUser = $userRepository->findOneBy(['username' => $mentionedUsername]);
+            if ($mentionedUser && $mentionedUser !== $user) {
+                $mentionNotification = new Notification();
+                $mentionNotification->setRecipient($mentionedUser);
+                $mentionNotification->setSender($user);
+                $mentionNotification->setType('mention');
+                $mentionNotification->setPostId($post->getId());
+                $entityManager->persist($mentionNotification);
+            }
+        }
         $entityManager->persist($post);
         $entityManager->flush();
 
@@ -136,6 +158,9 @@ class PostController extends AbstractController
             'media'    => $mediaPaths,
             'parentId' => $parentPost ? $parentPost->getId() : null,
         ], JsonResponse::HTTP_CREATED);
+
+        $entityManager->persist($post);
+        $entityManager->flush();
     }
 
     #[Route('/api/posts/{id}/like', methods: ['POST'], requirements: ['id' => '\d+'])]
@@ -158,6 +183,16 @@ class PostController extends AbstractController
 
         $post->addLike($user);
         $entityManager->flush();
+
+        if ($post->getAuthor() !== $user) {
+            $notification = new Notification();
+            $notification->setRecipient($post->getAuthor());
+            $notification->setSender($user);
+            $notification->setType('like');
+            $notification->setPostId($post->getId());
+            $entityManager->persist($notification);
+            $entityManager->flush();
+        }
 
         return new JsonResponse([
             'message' => 'Post liked successfully',
@@ -387,6 +422,16 @@ class PostController extends AbstractController
         $entityManager->persist($retweet);
         $entityManager->flush();
 
+        if ($originalPost->getAuthor() !== $user) {
+            $notification = new Notification();
+            $notification->setRecipient($originalPost->getAuthor());
+            $notification->setSender($user);
+            $notification->setType('retweet');
+            $notification->setPostId($originalPost->getId());
+            $entityManager->persist($notification);
+            $entityManager->flush();
+        }
+
         return new JsonResponse([
             'message' => $comment ? 'Post retweeted with comment' : 'Post retweeted successfully',
             'retweetId' => $retweet->getId(),
@@ -446,5 +491,19 @@ class PostController extends AbstractController
         $entityManager->flush();
 
         return new JsonResponse(['message' => 'Post unlocked successfully']);
+    }
+
+    #[Route('/api/profile/{username}/toggle-comment-privacy', methods: ['PUT'])]
+    public function toggleCommentPrivacy(string $username, Request $request, UserRepository $userRepository, EntityManagerInterface $em): JsonResponse
+    {
+        $user = $this->getUserFromBearer($request, $userRepository);
+        if (!$user || $user->getUsername() !== $username) {
+            return new JsonResponse(['error' => 'Unauthorized'], JsonResponse::HTTP_FORBIDDEN);
+        }
+
+        $user->setOnlyFollowersCanComment(!$user->isOnlyFollowersCanComment());
+        $em->flush();
+
+        return new JsonResponse(['message' => 'Comment privacy toggled successfully']);
     }
 }

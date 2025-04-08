@@ -1,15 +1,6 @@
-// src/pages/Hashtag.tsx
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import Post from "../../ui/Post/Post";
-
-// Import des styles CVA
-import {
-  hashtagPageContainer,
-  hashtagTitle,
-  postsContainer,
-  noPostsMessage,
-} from "./HashtagStyles";
 
 const HashtagPage = () => {
   const { hashtag } = useParams<{ hashtag: string }>();
@@ -18,14 +9,21 @@ const HashtagPage = () => {
   useEffect(() => {
     const fetchPostsByHashtag = async () => {
       try {
-        const response = await fetch(`http://localhost:8080/api/hashtag/${hashtag}`);
+        const response = await fetch(
+          `http://localhost:8080/api/hashtag/${hashtag}`
+        );
         if (!response.ok) {
-          throw new Error(`Erreur ${response.status}: ${await response.text()}`);
+          throw new Error(
+            `Erreur ${response.status}: ${await response.text()}`
+          );
         }
         const data = await response.json();
         setPosts(data.posts);
       } catch (error) {
-        console.error("Erreur lors de la récupération des posts par hashtag", error);
+        console.error(
+          "Erreur lors de la récupération des posts par hashtag",
+          error
+        );
       }
     };
 
@@ -35,9 +33,12 @@ const HashtagPage = () => {
   }, [hashtag]);
 
   return (
-    <div className={hashtagPageContainer()}>
-      <h1 className={hashtagTitle()}>#{hashtag}</h1>
-      <div className={postsContainer()}>
+    <div className="flex flex-col min-h-screen bg-gray-100 p-4">
+      <h1 className="text-2xl font-bold mb-6 text-center text-blue-600">
+        #{hashtag}
+      </h1>
+
+      <div className="flex-1 space-y-4">
         {posts.length > 0 ? (
           posts.map((post) => (
             <Post
@@ -52,10 +53,11 @@ const HashtagPage = () => {
               media={post.media}
               replies={post.replies}
               isCensored={post.isCensored}
+              isLocked={post.isLocked}
             />
           ))
         ) : (
-          <p className={noPostsMessage()}>
+          <p className="text-gray-400 text-center mt-10">
             Aucun post trouvé pour ce hashtag.
           </p>
         )}

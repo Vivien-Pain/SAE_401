@@ -1,24 +1,6 @@
-// SignUp.tsx
 import { useState } from "react";
-import {
-  signUpContainer,
-  SignUpTitle,
-  signUpForm,
-  signUpInput,
-  passwordStrengthText,
-  passwordErrorsList,
-  errorMessageText,
-  submitButton,
-  signUpFooter,
-  switchToLoginButton,
-} from "./SignUpFormStyles";
-
-// Import du composant Button (pour le bouton “S’inscrire”)
 import { Button } from "../../ui/Bouton/Bouton";
-import Icons_Profiles from "../../ui/Icons/Icons_Logo"; // Import du composant Icons_Profiles
-
-// Import du composant Icons_Profiles
-
+import Icons_Profiles from "../../ui/Icons/Icons_Logo";
 
 const SignUp = ({ onSwitchToLogin }: { onSwitchToLogin: () => void }) => {
   const [email, setEmail] = useState("");
@@ -28,7 +10,6 @@ const SignUp = ({ onSwitchToLogin }: { onSwitchToLogin: () => void }) => {
   const [errorMessage, setErrorMessage] = useState("");
   const [passwordErrors, setPasswordErrors] = useState<string[]>([]);
 
-  // Validation du mot de passe
   const validatePassword = (password: string) => {
     const errors: string[] = [];
 
@@ -81,11 +62,12 @@ const SignUp = ({ onSwitchToLogin }: { onSwitchToLogin: () => void }) => {
     }
 
     if (passwordErrors.length > 0) {
-      setErrorMessage("Le mot de passe ne respecte pas les critères de sécurité.");
+      setErrorMessage(
+        "Le mot de passe ne respecte pas les critères de sécurité."
+      );
       return;
     }
 
-    // Création de l'utilisateur
     const registerData = { email, username, password };
 
     try {
@@ -104,7 +86,6 @@ const SignUp = ({ onSwitchToLogin }: { onSwitchToLogin: () => void }) => {
       const data = await response.json();
       console.log("Utilisateur inscrit:", data);
 
-      // Si l'inscription réussit, rediriger vers la page de connexion
       alert("Inscription réussie !");
       onSwitchToLogin();
     } catch (error) {
@@ -113,30 +94,32 @@ const SignUp = ({ onSwitchToLogin }: { onSwitchToLogin: () => void }) => {
   };
 
   return (
-    <div className={signUpContainer()}>
-    <Icons_Profiles className={SignUpTitle()} />
-      <form onSubmit={handleSubmit} className={signUpForm()}>
-        <div>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="Email"
-            required
-            className={signUpInput()}
-          />
-        </div>
+    <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-gray-100">
+      <Icons_Profiles className="w-20 h-20 mb-6" />
 
-        <div>
-          <input
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            placeholder="Nom d'utilisateur"
-            required
-            className={signUpInput()}
-          />
-        </div>
+      <form
+        onSubmit={handleSubmit}
+        className="flex flex-col space-y-4 w-full max-w-sm bg-white p-6 rounded-lg shadow-md"
+      >
+        <h1 className="text-2xl font-bold mb-4 text-center">Créer un compte</h1>
+
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Email"
+          required
+          className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+        />
+
+        <input
+          type="text"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          placeholder="Nom d'utilisateur"
+          required
+          className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+        />
 
         <div>
           <input
@@ -145,10 +128,14 @@ const SignUp = ({ onSwitchToLogin }: { onSwitchToLogin: () => void }) => {
             onChange={handlePasswordChange}
             placeholder="Mot de passe"
             required
-            className={signUpInput()}
+            className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
           />
-          <p className={passwordStrengthText()}>{passwordStrength}</p>
-          <ul className={passwordErrorsList()}>
+          <p
+            className={`mt-1 text-sm ${passwordStrength === "Mot de passe fort" ? "text-green-500" : "text-red-500"}`}
+          >
+            {passwordStrength}
+          </p>
+          <ul className="text-xs text-red-500 list-disc ml-5 mt-1 space-y-1">
             {passwordErrors.map((error, index) => (
               <li key={index}>{error}</li>
             ))}
@@ -156,31 +143,22 @@ const SignUp = ({ onSwitchToLogin }: { onSwitchToLogin: () => void }) => {
         </div>
 
         {errorMessage && (
-          <p className={errorMessageText()}>{errorMessage}</p>
+          <p className="text-red-500 text-sm text-center">{errorMessage}</p>
         )}
 
-        {/* Bouton “S'inscrire” via <Button> */}
-        <Button
-          type="submit"
-          className={submitButton()}
-          variant="purple"
-          size="md"
-        >
+        <Button type="submit" className="w-full" variant="purple" size="md">
           S'inscrire
         </Button>
       </form>
 
-      <div className={signUpFooter()}>
-        <p className="text-sm">
-          Vous avez déjà un compte ?{" "}
-          {/* Bouton “Se connecter” rétabli comme avant (bouton natif) */}
-          <button
-            onClick={onSwitchToLogin}
-            className={switchToLoginButton()}
-          >
-            Se connecter
-          </button>
-        </p>
+      <div className="mt-6 text-sm text-gray-600">
+        Vous avez déjà un compte ?{" "}
+        <button
+          onClick={onSwitchToLogin}
+          className="text-purple-500 hover:underline"
+        >
+          Se connecter
+        </button>
       </div>
     </div>
   );

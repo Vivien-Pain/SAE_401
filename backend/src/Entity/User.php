@@ -78,6 +78,9 @@ class User implements PasswordAuthenticatedUserInterface
     #[ORM\OneToMany(targetEntity: Subscription::class, mappedBy: 'followed')]
     private Collection $subscriptions;
 
+    #[ORM\Column(type: 'boolean')]
+    private $onlyFollowersCanComment = false;
+
     public function __construct()
     {
         $this->posts = new ArrayCollection();
@@ -333,6 +336,17 @@ class User implements PasswordAuthenticatedUserInterface
                 $subscription->setFollowed(null);
             }
         }
+        return $this;
+    }
+
+    public function isOnlyFollowersCanComment(): bool
+    {
+        return $this->onlyFollowersCanComment;
+    }
+
+    public function setOnlyFollowersCanComment(bool $onlyFollowersCanComment): self
+    {
+        $this->onlyFollowersCanComment = $onlyFollowersCanComment;
         return $this;
     }
 }

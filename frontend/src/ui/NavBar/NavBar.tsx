@@ -1,22 +1,10 @@
-// NavBar.tsx
-
 import { Link, useNavigate } from "react-router-dom";
 
-// Icônes
 import Icons_Maison from "../Icons/icons_Maison";
 import Icons_Modal from "../Icons/Icons_Modal";
 import Icons_Reload from "../Icons/Icons_Reload";
 import Icons_Profile from "../Icons/Icons_Profile";
 import Icons_Deco from "../Icons/icons_Deco";
-
-// On importe les classes CVA
-import {
-  navBarContainer,
-  navBarContent,
-  navBarButton,
-  navBarProfileImage,
-  navBarIcon,
-} from "./NavBarStyles";
 
 interface NavBarProps {
   openPostForm: () => void;
@@ -25,7 +13,12 @@ interface NavBarProps {
   onRefresh: () => Promise<void>;
 }
 
-const NavBar = ({ openPostForm, username, profilePicture, onRefresh }: NavBarProps) => {
+const NavBar = ({
+  openPostForm,
+  username,
+  profilePicture,
+  onRefresh,
+}: NavBarProps) => {
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -34,40 +27,46 @@ const NavBar = ({ openPostForm, username, profilePicture, onRefresh }: NavBarPro
   };
 
   return (
-    // On applique nos classes CVA
-    <div
-      // Par défaut, position = "bottom" et theme = "light"
-      // On peut remplacer ces valeurs si besoin :
-      // className={navBarContainer({ position: "top", theme: "dark" })}
-      className={navBarContainer()}
-    >
-      <div className={navBarContent()}>
-        {/* Bouton Accueil */}
-        <Link to="/" className={navBarButton()}>
-          <Icons_Maison className={navBarIcon()} />
+    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-2 z-50 shadow-xl">
+      <div className="flex justify-around items-center max-w-md mx-auto w-full">
+        {/* Accueil */}
+        <Link
+          to="/"
+          className="flex flex-col items-center justify-center w-10 h-10 rounded-full hover:bg-gray-100 transition"
+        >
+          <Icons_Maison className="w-6 h-6 text-gray-700" />
         </Link>
 
-        {/* Bouton pour ouvrir la création de post */}
-        <button onClick={openPostForm} className={navBarButton()}>
-          <Icons_Modal className={navBarIcon()} />
+        {/* Ouvrir création de post */}
+        <button
+          onClick={openPostForm}
+          className="flex flex-col items-center justify-center w-10 h-10 rounded-full hover:bg-gray-100 transition"
+        >
+          <Icons_Modal className="w-6 h-6 text-gray-700" />
         </button>
 
-        {/* Bouton pour rafraîchir le fil de posts */}
-        <button onClick={onRefresh} className={navBarButton()}>
-          <Icons_Reload className={navBarIcon()} />
+        {/* Rafraîchir */}
+        <button
+          onClick={onRefresh}
+          className="flex flex-col items-center justify-center w-10 h-10 rounded-full hover:bg-gray-100 transition"
+        >
+          <Icons_Reload className="w-6 h-6 text-gray-700" />
         </button>
 
-        {/* Accès profil si connecté */}
+        {/* Profil utilisateur */}
         {username ? (
-          <Link to={`/profile/${username}`} className={navBarButton()}>
+          <Link
+            to={`/profile/${username}`}
+            className="flex flex-col items-center justify-center w-10 h-10 rounded-full hover:bg-gray-100 transition"
+          >
             {profilePicture ? (
               <img
                 src={profilePicture}
                 alt="Profile"
-                className={navBarProfileImage()}
+                className="w-8 h-8 rounded-full object-cover border-2 border-cyan-400"
               />
             ) : (
-              <Icons_Profile className={navBarIcon()} />
+              <Icons_Profile className="w-6 h-6 text-gray-700" />
             )}
           </Link>
         ) : (
@@ -75,8 +74,11 @@ const NavBar = ({ openPostForm, username, profilePicture, onRefresh }: NavBarPro
         )}
 
         {/* Déconnexion */}
-        <button onClick={handleLogout} className={navBarButton()}>
-          <Icons_Deco className={navBarIcon()} />
+        <button
+          onClick={handleLogout}
+          className="flex flex-col items-center justify-center w-10 h-10 rounded-full hover:bg-gray-100 transition"
+        >
+          <Icons_Deco className="w-6 h-6 text-gray-700" />
         </button>
       </div>
     </div>
