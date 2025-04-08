@@ -1,5 +1,23 @@
+// Login.tsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+
+// Import du composant Button
+import { Button } from "../../ui/Bouton/Bouton";
+import Icons_Profiles from "../../ui/Icons/Icons_Logo"; // Import du composant Icons_Profiles
+
+// Import des styles CVA
+import {
+  loginContainer,
+  loginTitle,
+  loginForm,
+  loginInput,
+  errorMessageText,
+  loginButton,
+  signupText,
+  switchSignupButton,
+} from "./LoginFormStyles";
+
 
 const Login = ({ onSwitchToSignUp }: { onSwitchToSignUp: () => void }) => {
   const [email, setEmail] = useState("");
@@ -9,14 +27,14 @@ const Login = ({ onSwitchToSignUp }: { onSwitchToSignUp: () => void }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-  
+
     if (!email || !password) {
       setErrorMessage("Veuillez remplir tous les champs.");
       return;
     }
-  
+
     const loginData = { email, password };
-  
+
     try {
       const response = await fetch("http://localhost:8080/api/login", {
         method: "POST",
@@ -25,41 +43,39 @@ const Login = ({ onSwitchToSignUp }: { onSwitchToSignUp: () => void }) => {
         },
         body: JSON.stringify(loginData),
       });
-  
+
       const data = await response.json();
-    
-  
+
       if (!response.ok) {
         throw new Error(data.error || "Email ou mot de passe incorrect");
       }
-  
+
       if (data.token) {
-     
         localStorage.setItem("token", data.token);
-  
-      
-  
         navigate("/home");
       } else {
         setErrorMessage("Aucun token reçu, connexion échouée.");
       }
     } catch (error: any) {
       console.error("Erreur de connexion :", error);
-      setErrorMessage(error.message || "Impossible de se connecter. Veuillez réessayer.");
+      setErrorMessage(
+        error.message || "Impossible de se connecter. Veuillez réessayer."
+      );
     }
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen">
-      <h1 className="text-2xl font-bold mb-4">Se connecter</h1>
-      <form onSubmit={handleSubmit} className="w-80 space-y-4">
+    <div className={loginContainer()}>
+      <Icons_Profiles className={loginTitle()} />
+
+      <form onSubmit={handleSubmit} className={loginForm()}>
         <input
           type="email"
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
-          className="w-full p-3 border rounded-md"
+          className={loginInput()}
         />
         <input
           type="password"
@@ -67,16 +83,29 @@ const Login = ({ onSwitchToSignUp }: { onSwitchToSignUp: () => void }) => {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
-          className="w-full p-3 border rounded-md"
+          className={loginInput()}
         />
-        {errorMessage && <p className="text-red-500">{errorMessage}</p>}
-        <button type="submit" className="w-full bg-blue-500 text-white p-3 rounded-md">
+
+        {errorMessage && <p className={errorMessageText()}>{errorMessage}</p>}
+
+        {/* Bouton de connexion via notre composant Button */}
+        <Button
+          type="submit"
+          className={loginButton()}
+          variant="purple"
+          size="md"
+        >
           Connexion
-        </button>
+        </Button>
       </form>
-      <p className="mt-4">
+
+      <p className={signupText()}>
         Pas encore de compte ?{" "}
-        <button onClick={onSwitchToSignUp} className="text-blue-500">
+        {/* Bouton “Inscris-toi” rétabli comme avant (bouton natif) */}
+        <button
+          onClick={onSwitchToSignUp}
+          className={switchSignupButton()}
+        >
           Inscris-toi
         </button>
       </p>

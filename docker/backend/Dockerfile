@@ -19,5 +19,8 @@ RUN docker-php-ext-install pdo_mysql
 # Install Composer globally
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
+# Copy php.ini file
+COPY docker/backend/php.ini /usr/local/etc/php/conf.d/app.ini
+
 # Expose port 9000 for PHP-FPM
 EXPOSE 9000

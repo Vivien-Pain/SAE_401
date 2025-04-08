@@ -1,9 +1,27 @@
+// NavBar.tsx
+
 import { Link, useNavigate } from "react-router-dom";
+
+// Icônes
+import Icons_Maison from "../Icons/icons_Maison";
+import Icons_Modal from "../Icons/Icons_Modal";
+import Icons_Reload from "../Icons/Icons_Reload";
+import Icons_Profile from "../Icons/Icons_Profile";
+import Icons_Deco from "../Icons/icons_Deco";
+
+// On importe les classes CVA
+import {
+  navBarContainer,
+  navBarContent,
+  navBarButton,
+  navBarProfileImage,
+  navBarIcon,
+} from "./NavBarStyles";
 
 interface NavBarProps {
   openPostForm: () => void;
   username: string | null;
-  profilePicture: string | null; // Ajout de la propriété pour l'image de profil
+  profilePicture: string | null;
   onRefresh: () => Promise<void>;
 }
 
@@ -11,40 +29,54 @@ const NavBar = ({ openPostForm, username, profilePicture, onRefresh }: NavBarPro
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    localStorage.removeItem("token"); // Suppression du token
-    navigate("/"); // Redirection vers la page de connexion
+    localStorage.removeItem("token");
+    navigate("/");
   };
 
   return (
-    <div className="fixed bottom-0 w-full bg-white py-4 px-6 shadow-lg flex justify-between items-center">
-      <div className="flex justify-between items-center w-full max-w-xs mx-auto">
-        
-        <Link to="/" className="flex justify-center items-center">
-          <img src="/assets/Home.png" alt="Home" className="w-6 h-6 md:w-8 md:h-8 cursor-pointer" />
+    // On applique nos classes CVA
+    <div
+      // Par défaut, position = "bottom" et theme = "light"
+      // On peut remplacer ces valeurs si besoin :
+      // className={navBarContainer({ position: "top", theme: "dark" })}
+      className={navBarContainer()}
+    >
+      <div className={navBarContent()}>
+        {/* Bouton Accueil */}
+        <Link to="/" className={navBarButton()}>
+          <Icons_Maison className={navBarIcon()} />
         </Link>
 
-        <button onClick={openPostForm} className="flex justify-center items-center">
-          <img src="/assets/Post.png" alt="Post" className="w-6 h-6 md:w-8 md:h-8 cursor-pointer" />
+        {/* Bouton pour ouvrir la création de post */}
+        <button onClick={openPostForm} className={navBarButton()}>
+          <Icons_Modal className={navBarIcon()} />
         </button>
 
-        <button onClick={onRefresh} className="flex justify-center items-center">
-          <img src="/assets/reload.png" alt="Rafraîchir" className="w-6 h-6 md:w-8 md:h-8 cursor-pointer" />
+        {/* Bouton pour rafraîchir le fil de posts */}
+        <button onClick={onRefresh} className={navBarButton()}>
+          <Icons_Reload className={navBarIcon()} />
         </button>
 
+        {/* Accès profil si connecté */}
         {username ? (
-          <Link to={`/profile/${username}`} className="flex justify-center items-center">
-            <img
-              src={profilePicture || "/assets/Logo.png"} // Utilisation de l'image de profil ou d'une image par défaut
-              alt="Profile"
-              className="w-6 h-6 md:w-8 md:h-8 cursor-pointer rounded-full" // Ajout de `rounded-full` pour un effet circulaire
-            />
+          <Link to={`/profile/${username}`} className={navBarButton()}>
+            {profilePicture ? (
+              <img
+                src={profilePicture}
+                alt="Profile"
+                className={navBarProfileImage()}
+              />
+            ) : (
+              <Icons_Profile className={navBarIcon()} />
+            )}
           </Link>
         ) : (
-          <p className="text-gray-500">Chargement...</p>
+          <p className="text-gray-400">...</p>
         )}
 
-        <button onClick={handleLogout} className="flex justify-center items-center">
-          <img src="/assets/logout.png" alt="Déconnexion" className="w-6 h-6 md:w-8 md:h-8 cursor-pointer" />
+        {/* Déconnexion */}
+        <button onClick={handleLogout} className={navBarButton()}>
+          <Icons_Deco className={navBarIcon()} />
         </button>
       </div>
     </div>

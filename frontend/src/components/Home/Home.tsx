@@ -4,17 +4,23 @@ import NavBar from "../../ui/NavBar/NavBar";
 import PostModal from "../../ui/PostModal/PostModal";
 import Header from "../../ui/Header/Header";
 import Post from "../../ui/Post/Post";
-import Search from "../../ui/Search/Search"; // <-- AJOUT
+
+// Import des styles CVA
+import {
+  homeContainer,
+  postsContainer,
+  noPostsContainer,
+  navBarContainer,
+} from "./HomeStyles";
 
 const Home = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [posts, setPosts] = useState<any[]>([]);
-  const [user, setUser] = useState<{ username: string | null, readOnlyMode?: boolean }>({ username: null });
+  const [user, setUser] = useState<{ username: string | null }>({ username: null });
 
   useEffect(() => {
     const fetchUser = async () => {
       const token = localStorage.getItem("token");
-
       if (!token) {
         console.error("Aucun token disponible");
         return;
@@ -24,7 +30,7 @@ const Home = () => {
         const response = await fetch("http://localhost:8080/api/current_user", {
           method: "GET",
           headers: {
-            "Authorization": `Bearer ${token}`,
+            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
         });
@@ -34,7 +40,7 @@ const Home = () => {
         }
 
         const data = await response.json();
-        setUser({ username: data.username, readOnlyMode: data.readOnlyMode });
+        setUser({ username: data.username });
       } catch (error) {
         console.error("Erreur lors de la récupération de l'utilisateur", error);
       }
@@ -43,13 +49,9 @@ const Home = () => {
     fetchUser();
   }, []);
 
-  const fetchPosts = async (query: string = "") => {
+  const fetchPosts = async () => {
     try {
-      const url = query
-        ? `http://localhost:8080/api/posts/search?q=${encodeURIComponent(query)}`
-        : "http://localhost:8080/api/posts";
-
-      const response = await fetch(url);
+      const response = await fetch("http://localhost:8080/api/posts");
       if (!response.ok) {
         throw new Error(`Erreur ${response.status}: ${await response.text()}`);
       }
@@ -85,15 +87,13 @@ const Home = () => {
     }
 
     try {
-      const formData = new FormData();
-      formData.append('content', content);
-
       const response = await fetch("http://localhost:8080/api/posts", {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-        body: formData,
+        body: JSON.stringify({ content }),
       });
 
       if (!response.ok) {
@@ -108,19 +108,13 @@ const Home = () => {
     }
   };
 
-  const handleSearch = (query: string) => {
-    fetchPosts(query);
-  };
-
   return (
-    <div className="flex flex-col h-screen items-center">
+    <div className={homeContainer()}>
+      {/* Header avec le nouveau style (dégradé) */}
       <Header username={user.username || "Invité"} />
-      
-      <div className="w-full max-w-md p-2">
-        <Search onSearch={handleSearch} />
-      </div>
 
-      <div className="flex-grow w-full max-w-md space-y-4 p-4 overflow-auto">
+      {/* Liste de posts */}
+      <div className={postsContainer()}>
         {posts.length > 0 ? (
           posts.map((post) => (
             <Post
@@ -138,24 +132,24 @@ const Home = () => {
             />
           ))
         ) : (
-          <div>
-            <p>Aucun post disponible</p>
+          <div className={noPostsContainer()}>
+            <p className="text-gray-400">Aucun post disponible</p>
           </div>
         )}
       </div>
 
-      <div className="fixed bottom-0 w-full">
-        <NavBar 
-          openPostForm={openPostForm} 
-          username={user.username} 
-          profilePicture={null} 
-          onRefresh={fetchPosts} 
+      {/* NavBar en bas */}
+      <div className={navBarContainer()}>
+        <NavBar
+          openPostForm={openPostForm}
+          username={user.username}
+          profilePicture={null}
+          onRefresh={fetchPosts}
         />
       </div>
 
-      {!user.readOnlyMode && (
-        <PostModal isOpen={isModalOpen} onClose={closePostForm} onSubmit={handlePostSubmit} />
-      )}
+      {/* Modale de création de post */}
+      <PostModal isOpen={isModalOpen} onClose={closePostForm} onSubmit={handlePostSubmit} />
     </div>
   );
 };

@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 
+// Import des styles CVA
+import { searchForm, searchInput, searchButton } from "./SearchStyles";
+
 interface SearchProps {
   onSearch: (query: string) => void;
 }
@@ -15,17 +18,17 @@ const Search = ({ onSearch }: SearchProps) => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="w-full flex items-center p-2">
+    <form onSubmit={handleSubmit} className={searchForm()}>
       <input
         type="text"
         placeholder="Rechercher un post..."
-        className="flex-grow p-2 rounded-l-lg border border-gray-300 focus:outline-none"
+        className={searchInput()}
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
       />
       <button
         type="submit"
-        className="bg-blue-500 text-white p-2 rounded-r-lg hover:bg-blue-600"
+        className={searchButton()}
       >
         Rechercher
       </button>

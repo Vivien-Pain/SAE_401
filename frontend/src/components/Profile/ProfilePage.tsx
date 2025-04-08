@@ -1,6 +1,32 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import Post from "../../ui/Post/Post";
+import { Button } from "../../ui/Bouton/Bouton";
+
+// Import des styles CVA
+import {
+  profilePageContainer,
+  profileMainWrapper,
+  bannerContainer,
+  bannerImage,
+  profilePicture,
+  profileInfoContainer,
+  profileUsername,
+  profileInfoRow,
+  profileTextInfo,
+  profileLocationWebsite,
+  actionButtonsContainer,
+  editProfileFormContainer,
+  editProfileInput,
+  pinnedPostContainer,
+  pinnedPostTitle,
+  postsListContainer,
+  postsListTitle,
+  singlePostContainer,
+  noPostText,
+  editPostTextarea,
+  postActionButtonsContainer,
+} from "./ProfilePageStyles";
 
 interface PostType {
   id: number;
@@ -74,7 +100,6 @@ export default function ProfilePage() {
         setCurrentUser({ username: data.username });
       }
     };
-
     fetchCurrentUser();
   }, []);
 
@@ -168,6 +193,7 @@ export default function ProfilePage() {
   const handleBlockToggle = async () => {
     const token = localStorage.getItem("token");
     if (!token || !profile) return;
+
     const endpoint = isBlocked
       ? `http://localhost:8080/api/users/${profile.id}/unblock`
       : `http://localhost:8080/api/users/${profile.id}/block`;
@@ -197,7 +223,7 @@ export default function ProfilePage() {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
       });
-      window.location.reload();
+      window.location.reload(); // Simpliste, recharge toute la page 
     } catch (error) {
       console.error("Erreur pin:", error);
     }
@@ -222,7 +248,9 @@ export default function ProfilePage() {
       const updated = await response.json();
       setProfile((prev) => ({
         ...prev!,
-        posts: prev!.posts.map((p) => (p.id === updated.id ? { ...p, content: updated.content } : p)),
+        posts: prev!.posts.map((p) =>
+          p.id === updated.id ? { ...p, content: updated.content } : p
+        ),
       }));
       setEditingPostId(null);
       setEditedContent("");
@@ -251,119 +279,242 @@ export default function ProfilePage() {
     }
   };
 
-  if (!profile) return <p>Chargement...</p>;
+  if (!profile) {
+    return <p className="text-center mt-8">Chargement...</p>;
+  }
 
   return (
-    <div className="max-w-2xl mx-auto p-4">
-      {/* Affichage du profil */}
-      <div className="relative">
-        <img src={profile.banner} alt="Bannière" className="w-full h-40 object-cover" />
-        <img src={profile.profilePicture} alt="Profil" className="w-24 h-24 rounded-full border-4 border-white absolute -bottom-12 left-4" />
-      </div>
-
-      <div className="mt-12 p-4">
-        <h1 className="text-2xl font-bold">{profile.username}</h1>
-
-        {!isEditingProfile ? (
-          <>
-            <p>{profile.bio}</p>
-            <p>{profile.location}</p>
-            <a href={profile.website} className="text-blue-500">{profile.website}</a>
-
-            {currentUser?.username === profile.username ? (
-              <>
-                <button onClick={handleEditProfileToggle} className="ml-4 px-4 py-2 bg-yellow-500 text-white rounded">Modifier</button>
-                <button onClick={handleToggleReadOnlyMode} className="ml-4 px-4 py-2 bg-purple-500 text-white rounded">
-                  {profile.readOnlyMode ? "Désactiver Lecture Seule" : "Activer Lecture Seule"}
-                </button>
-              </>
-            ) : (
-              <>
-                <button onClick={handleFollowToggle} className="ml-4 px-4 py-2 bg-blue-500 text-white rounded">
-                  {isFollowing ? "Se désabonner" : "Suivre"}
-                </button>
-                <button onClick={handleBlockToggle} className={`ml-4 px-4 py-2 rounded ${isBlocked ? "bg-green-500" : "bg-red-500"} text-white`}>
-                  {isBlocked ? "Débloquer" : "Bloquer"}
-                </button>
-              </>
-            )}
-          </>
-        ) : (
-          <div className="flex flex-col space-y-2">
-            <input type="text" name="bio" value={formData.bio} onChange={handleChangeProfile} className="border p-2" placeholder="Bio" />
-            <input type="text" name="profilePicture" value={formData.profilePicture} onChange={handleChangeProfile} className="border p-2" placeholder="Photo de profil (URL)" />
-            <input type="text" name="banner" value={formData.banner} onChange={handleChangeProfile} className="border p-2" placeholder="Bannière (URL)" />
-            <input type="text" name="location" value={formData.location} onChange={handleChangeProfile} className="border p-2" placeholder="Localisation" />
-            <input type="text" name="website" value={formData.website} onChange={handleChangeProfile} className="border p-2" placeholder="Site web" />
-            <div className="flex gap-2">
-              <button onClick={handleSubmitProfile} className="px-4 py-2 bg-green-500 text-white rounded">Enregistrer</button>
-              <button onClick={handleEditProfileToggle} className="px-4 py-2 bg-gray-500 text-white rounded">Annuler</button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Affichage posts */}
-      {profile.pinnedPost && (
-        <div className="mb-6">
-          <h2 className="text-lg font-bold">Post Épinglé</h2>
-          <Post {...profile.pinnedPost} isCensored={false} />
-          {currentUser?.username === profile.username && (
-            <button onClick={() => handlePinToggle(profile.pinnedPost!.id, true)} className="mt-2 px-4 py-2 bg-red-500 text-white rounded">Désépingler</button>
-          )}
+    <div className={profilePageContainer()}>
+      <div className={profileMainWrapper()}>
+        {/* Bannière + Photo de profil */}
+        <div className={bannerContainer()}>
+          <img
+            src={profile.banner}
+            alt="Bannière"
+            className={bannerImage()}
+          />
+          <img
+            src={profile.profilePicture}
+            alt="Profil"
+            className={profilePicture()}
+          />
         </div>
-      )}
 
-      <hr className="my-4" />
+        {/* Section infos utilisateur */}
+        <div className={profileInfoContainer()}>
+          <h1 className={profileUsername()}>{profile.username}</h1>
+          <div className={profileInfoRow()}>
+            <div className={profileTextInfo()}>
+              <p>{profile.bio}</p>
+              {profile.location && (
+                <p className={profileLocationWebsite()}>
+                  📍 {profile.location}
+                </p>
+              )}
+              {profile.website && (
+                <a
+                  href={profile.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-500 hover:underline text-sm"
+                >
+                  {profile.website}
+                </a>
+              )}
+            </div>
 
-      <div>
-        <h2 className="text-xl font-semibold">Posts</h2>
-        {profile.posts.length === 0 ? (
-          <p>Aucun post trouvé.</p>
-        ) : (
-          profile.posts.map((post) => (
-            <div key={post.id} className="mb-4">
-              {editingPostId === post.id ? (
+            {/* Boutons d’action */}
+            <div className={actionButtonsContainer()}>
+              {/* Si c'est le profil de l'utilisateur courant */}
+              {currentUser?.username === profile.username ? (
                 <>
-                  <textarea
-                    value={editedContent}
-                    onChange={(e) => setEditedContent(e.target.value)}
-                    className="w-full border p-2 rounded"
-                    rows={3}
-                  />
-                  <div className="flex gap-2 mt-2">
-                    <button onClick={() => handleSubmitEditPost(post.id)} className="bg-green-500 text-white px-4 py-2 rounded">Enregistrer</button>
-                    <button onClick={() => setEditingPostId(null)} className="bg-gray-500 text-white px-4 py-2 rounded">Annuler</button>
-                  </div>
+                  <Button
+                    onClick={handleEditProfileToggle}
+                    variant="cyan"
+                  >
+                    Modifier Profil
+                  </Button>
+                  <Button
+                    onClick={handleToggleReadOnlyMode}
+                    variant="purple"
+                  >
+                    {profile.readOnlyMode
+                      ? "Désactiver Lecture Seule"
+                      : "Activer Lecture Seule"}
+                  </Button>
                 </>
               ) : (
                 <>
-                  <Post
-                    content={post.content}
-                    created_at={post.created_at}
-                    likes={post.likes}
-                    isLiked={post.isLiked}
-                    id={post.id}
-                    authorId={post.authorId}
-                    authorUsername={post.authorUsername}
-                    media={post.media}
-                    replies={post.replies}
-                    isCensored={false}
-                  />
-                  {currentUser?.username === profile.username && (
-                    <div className="flex gap-2 mt-2">
-                      <button onClick={() => handleEditPost(post.id, post.content)} className="bg-blue-500 text-white px-3 py-1 rounded">Modifier</button>
-                      {!post.isPinned && (
-                        <button onClick={() => handlePinToggle(post.id, false)} className="bg-yellow-500 text-white px-3 py-1 rounded">Épingler</button>
-                      )}
-                      <button onClick={() => handleDeletePost(post.id)} className="bg-red-600 text-white px-3 py-1 rounded">Supprimer</button>
-                    </div>
-                  )}
+                  <Button
+                    onClick={handleFollowToggle}
+                    variant="cyan"
+                  >
+                    {isFollowing ? "Se désabonner" : "Suivre"}
+                  </Button>
+                  <Button
+                    onClick={handleBlockToggle}
+                    variant={isBlocked ? "green" : "red"}
+                  >
+                    {isBlocked ? "Débloquer" : "Bloquer"}
+                  </Button>
                 </>
               )}
             </div>
-          ))
+          </div>
+        </div>
+
+        {/* Formulaire de modification du profil */}
+        {isEditingProfile && (
+          <div className={editProfileFormContainer()}>
+            <input
+              type="text"
+              name="bio"
+              value={formData.bio}
+              onChange={handleChangeProfile}
+              placeholder="Bio"
+              className={editProfileInput()}
+            />
+            <input
+              type="text"
+              name="profilePicture"
+              value={formData.profilePicture}
+              onChange={handleChangeProfile}
+              placeholder="Photo de profil (URL)"
+              className={editProfileInput()}
+            />
+            <input
+              type="text"
+              name="banner"
+              value={formData.banner}
+              onChange={handleChangeProfile}
+              placeholder="Bannière (URL)"
+              className={editProfileInput()}
+            />
+            <input
+              type="text"
+              name="location"
+              value={formData.location}
+              onChange={handleChangeProfile}
+              placeholder="Localisation"
+              className={editProfileInput()}
+            />
+            <input
+              type="text"
+              name="website"
+              value={formData.website}
+              onChange={handleChangeProfile}
+              placeholder="Site web"
+              className={editProfileInput()}
+            />
+            <div className="flex gap-2">
+              <Button
+                onClick={handleSubmitProfile}
+                variant="green"
+              >
+                Enregistrer
+              </Button>
+              <Button
+                onClick={handleEditProfileToggle}
+                variant="gray"
+              >
+                Annuler
+              </Button>
+            </div>
+          </div>
         )}
+
+        {/* Post épinglé */}
+        {profile.pinnedPost && (
+          <div className={pinnedPostContainer()}>
+            <h2 className={pinnedPostTitle()}>Post Épinglé</h2>
+            <Post {...profile.pinnedPost} isCensored={false} />
+            {currentUser?.username === profile.username && (
+              <Button
+                onClick={() => handlePinToggle(profile.pinnedPost!.id, true)}
+                variant="yellow"
+              >
+                Désépingler
+              </Button>
+            )}
+          </div>
+        )}
+
+        {/* Liste des posts */}
+        <div className={postsListContainer()}>
+          <h2 className={postsListTitle()}>Posts</h2>
+          {profile.posts.length === 0 ? (
+            <p className={noPostText()}>Aucun post trouvé.</p>
+          ) : (
+            profile.posts.map((post) => (
+              <div key={post.id} className={singlePostContainer()}>
+                {editingPostId === post.id ? (
+                  <>
+                    <textarea
+                      value={editedContent}
+                      onChange={(e) => setEditedContent(e.target.value)}
+                      className={editPostTextarea()}
+                      rows={3}
+                    />
+                    <div className="flex gap-2 mt-2">
+                      <Button
+                        onClick={() => handleSubmitEditPost(post.id)}
+                        variant="green"
+                      >
+                        Enregistrer
+                      </Button>
+                      <Button
+                        onClick={() => setEditingPostId(null)}
+                        variant="gray"
+                      >
+                        Annuler
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <Post
+                      content={post.content}
+                      created_at={post.created_at}
+                      likes={post.likes}
+                      isLiked={post.isLiked}
+                      id={post.id}
+                      authorId={post.authorId}
+                      authorUsername={post.authorUsername}
+                      media={post.media}
+                      replies={post.replies}
+                      isCensored={false}
+                    />
+                    {/* Boutons d'action sur le post si c'est le profil de l'utilisateur */}
+                    {currentUser?.username === profile.username && (
+                      <div className={postActionButtonsContainer()}>
+                        <Button
+                          onClick={() => handleEditPost(post.id, post.content)}
+                          variant="cyan"
+                        >
+                          Modifier
+                        </Button>
+                        {!post.isPinned && (
+                          <Button
+                            onClick={() => handlePinToggle(post.id, false)}
+                            variant="yellow"
+                          >
+                            Épingler
+                          </Button>
+                        )}
+                        <Button
+                          onClick={() => handleDeletePost(post.id)}
+                          variant="red"
+                        >
+                          Supprimer
+                        </Button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            ))
+          )}
+        </div>
       </div>
     </div>
   );

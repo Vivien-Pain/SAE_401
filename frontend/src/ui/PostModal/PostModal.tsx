@@ -1,4 +1,22 @@
+// PostModal.tsx
 import { useState } from "react";
+import {
+  modalOverlay,
+  modalContainer,
+  modalTitle,
+  contentTextarea,
+  fileInput,
+  previewsContainer,
+  singlePreviewWrapper,
+  previewMedia,
+  removeMediaButton,
+  fileNamesList,
+  errorMessageText,
+  modalButtonsContainer,
+  // cancelButton,      <-- plus nécessaire
+  // publishButton,     <-- plus nécessaire
+} from "./PostModalStyles";
+import { Button } from "../Bouton/Bouton"; // <-- Import du composant Button
 
 interface PostModalProps {
   isOpen: boolean;
@@ -17,16 +35,16 @@ const PostModal = ({ isOpen, onClose }: PostModalProps) => {
   const handleMediaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const files = Array.from(e.target.files);
-      setMediaFiles(prev => [...prev, ...files]);
-      const newPreviews = files.map(file => URL.createObjectURL(file));
-      setPreviews(prev => [...prev, ...newPreviews]);
+      setMediaFiles((prev) => [...prev, ...files]);
+      const newPreviews = files.map((file) => URL.createObjectURL(file));
+      setPreviews((prev) => [...prev, ...newPreviews]);
     }
   };
 
   // Supprimer un fichier sélectionné
   const handleRemoveMedia = (index: number) => {
-    setMediaFiles(prev => prev.filter((_, i) => i !== index));
-    setPreviews(prev => prev.filter((_, i) => i !== index));
+    setMediaFiles((prev) => prev.filter((_, i) => i !== index));
+    setPreviews((prev) => prev.filter((_, i) => i !== index));
   };
 
   // Soumission du post
@@ -47,7 +65,7 @@ const PostModal = ({ isOpen, onClose }: PostModalProps) => {
 
     const formData = new FormData();
     formData.append("content", content);
-    mediaFiles.forEach(file => {
+    mediaFiles.forEach((file) => {
       formData.append("mediaFiles[]", file);
     });
 
@@ -68,7 +86,7 @@ const PostModal = ({ isOpen, onClose }: PostModalProps) => {
       } else {
         console.log("Post créé :", data);
         onClose();
-        window.location.reload();
+        window.location.reload(); // Recharger la page
       }
     } catch (error) {
       console.error("Erreur réseau :", error);
@@ -81,13 +99,13 @@ const PostModal = ({ isOpen, onClose }: PostModalProps) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 flex justify-center items-center bg-gray-800 bg-opacity-60 z-50">
-      <div className="bg-white p-6 rounded-2xl w-96 shadow-xl relative">
-        <h2 className="text-xl font-bold mb-4">Créer un Post</h2>
+    <div className={modalOverlay()}>
+      <div className={modalContainer()}>
+        <h2 className={modalTitle()}>Créer un Post</h2>
 
         {/* Zone de texte */}
         <textarea
-          className="w-full h-24 p-2 border border-gray-300 rounded-lg mb-4 resize-none"
+          className={contentTextarea()}
           placeholder="Quoi de neuf ?"
           value={content}
           onChange={(e) => setContent(e.target.value)}
@@ -99,21 +117,25 @@ const PostModal = ({ isOpen, onClose }: PostModalProps) => {
           accept="image/*,video/*"
           multiple
           onChange={handleMediaChange}
-          className="mb-4"
+          className={fileInput()}
         />
 
-        {/* Preview */}
-        <div className="flex flex-wrap gap-2 mb-4">
+        {/* Previews */}
+        <div className={previewsContainer()}>
           {previews.map((src, idx) => (
-            <div key={idx} className="w-24 h-24 relative group">
+            <div key={idx} className={singlePreviewWrapper()}>
               {src.match(/video/i) ? (
-                <video src={src} className="w-full h-full object-cover" controls />
+                <video src={src} className={previewMedia()} controls />
               ) : (
-                <img src={src} alt={`preview-${idx}`} className="w-full h-full object-cover rounded-lg" />
+                <img
+                  src={src}
+                  alt={`preview-${idx}`}
+                  className={previewMedia()}
+                />
               )}
               <button
                 onClick={() => handleRemoveMedia(idx)}
-                className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1 text-xs hidden group-hover:block"
+                className={removeMediaButton()}
               >
                 ✕
               </button>
@@ -123,35 +145,33 @@ const PostModal = ({ isOpen, onClose }: PostModalProps) => {
 
         {/* Liste noms des fichiers */}
         {mediaFiles.length > 0 && (
-          <ul className="text-xs mb-4">
+          <ul className={fileNamesList()}>
             {mediaFiles.map((file, idx) => (
-              <li key={idx} className="truncate">{file.name}</li>
+              <li key={idx} className="truncate">
+                {file.name}
+              </li>
             ))}
           </ul>
         )}
 
         {/* Erreur */}
         {errorMessage && (
-          <p className="text-red-500 text-sm mb-2">{errorMessage}</p>
+          <p className={errorMessageText()}>{errorMessage}</p>
         )}
 
         {/* Boutons */}
-        <div className="flex justify-between items-center">
-          <button
-            onClick={onClose}
-            className="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg"
-          >
+        <div className={modalButtonsContainer()}>
+          {/* Remplacement par <Button> */}
+          <Button variant="gray" onClick={onClose}>
             Annuler
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="purple"
             onClick={handleSubmit}
             disabled={isSubmitting}
-            className={`${
-              isSubmitting ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-700"
-            } text-white px-4 py-2 rounded-lg transition`}
           >
             {isSubmitting ? "Publication..." : "Publier"}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

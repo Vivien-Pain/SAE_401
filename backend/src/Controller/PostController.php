@@ -27,7 +27,14 @@ class PostController extends AbstractController
     public function getPosts(Request $request, PostRepository $postRepository, UserRepository $userRepository): JsonResponse
     {
         $user = $this->getUserFromBearer($request, $userRepository);
-        $posts = $postRepository->findBy(['parent' => null], ['created_at' => 'DESC']);
+        $posts = $postRepository->createQueryBuilder('p')
+            ->leftJoin('p.parent', 'parent')
+            ->addSelect('parent')
+            ->where('p.parent IS NULL OR (p.parent IS NOT NULL AND p.content IS NOT NULL)')
+            ->orderBy('p.created_at', 'DESC')
+            ->getQuery()
+            ->getResult();
+
 
         $formatReplies = function ($repliesCollection) use ($user) {
             return array_map(function (Post $replyPost) use ($user) {
@@ -294,7 +301,7 @@ class PostController extends AbstractController
     }
 
     #[Route('/api/hashtag/{hashtag}', name: 'api_posts_by_hashtag', methods: ['GET'])]
-    public function getPostsByHashtag(string $hashtag, EntityManagerInterface $em): JsonResponse
+    public function getPostsByHashtag(string $hashtag, EntityManagerInterface $em, Request $request): JsonResponse
     {
         $posts = $em->getRepository(Post::class)->createQueryBuilder('p')
             ->where('p.content LIKE :hashtag')
@@ -303,21 +310,86 @@ class PostController extends AbstractController
             ->getQuery()
             ->getResult();
 
-        $data = array_map(function (Post $post) {
+        $user = $this->getUserFromBearer($request, $em->getRepository(User::class));
+        $formatReplies = function ($repliesCollection) use ($user) {
+            return array_map(function (Post $replyPost) use ($user) {
+                $replyAuthor = $replyPost->getAuthor();
+                return [
+                    'id' => $replyPost->getId(),
+                    'content' => $replyPost->getContent(),
+                    'created_at' => $replyPost->getCreatedAt()->format('Y-m-d H:i:s'),
+                    'likes' => count($replyPost->getLikes()),
+                    'isLiked' => $user ? $replyPost->getLikes()->contains($user) : false,
+                    'authorId' => $replyAuthor->getId(),
+                    'authorUsername' => $replyAuthor->getUsername(),
+                    'media' => $replyPost->getMedia() ?? [],
+                    'isCensored' => $replyPost->isCensored(),
+                ];
+            }, $repliesCollection->toArray());
+        };
+
+        $data = array_map(function (Post $post) use ($user, $formatReplies) {
+            $author = $post->getAuthor();
             return [
                 'id' => $post->getId(),
                 'content' => $post->getContent(),
                 'created_at' => $post->getCreatedAt()->format('Y-m-d H:i:s'),
                 'likes' => count($post->getLikes()),
-                'isLiked' => false, // à améliorer avec l'utilisateur courant
-                'authorId' => $post->getAuthor()?->getId(),
-                'authorUsername' => $post->getAuthor()?->getUsername(),
-                'media' => [], // à compléter si besoin
-                'replies' => [],
+                'isLiked' => $user ? $post->getLikes()->contains($user) : false,
+                'authorId' => $author->getId(),
+                'authorUsername' => $author->getUsername(),
+                'media' => $post->getMedia() ?? [],
+                'replies' => $formatReplies($post->getReplies()),
                 'isCensored' => $post->isCensored(),
+
+                // 🔥 NOUVEAU pour afficher si c'est un retweet :
+                'parent' => $post->getParent() ? [
+                    'id' => $post->getParent()->getId(),
+                    'content' => $post->getParent()->getContent(),
+                    'authorUsername' => $post->getParent()->getAuthor()->getUsername(),
+                    'media' => $post->getParent()->getMedia() ?? [],
+                    'created_at' => $post->getParent()->getCreatedAt()->format('Y-m-d H:i:s'),
+                ] : null,
             ];
         }, $posts);
 
         return new JsonResponse(['posts' => $data]);
+    }
+
+    #[Route('/api/posts/{id}/retweet', methods: ['POST'], requirements: ['id' => '\d+'])]
+    public function retweetPost(
+        int $id,
+        PostRepository $postRepository,
+        EntityManagerInterface $entityManager,
+        Request $request,
+        UserRepository $userRepository
+    ): JsonResponse {
+        $user = $this->getUserFromBearer($request, $userRepository);
+        if (!$user) {
+            return new JsonResponse(['error' => 'User not authenticated'], JsonResponse::HTTP_UNAUTHORIZED);
+        }
+
+        $originalPost = $postRepository->find($id);
+        if (!$originalPost) {
+            return new JsonResponse(['error' => 'Original post not found'], JsonResponse::HTTP_NOT_FOUND);
+        }
+
+        // 🔥 S'il veut ajouter un commentaire au retweet
+        $comment = $request->request->get('comment');
+
+        $retweet = new Post();
+        $retweet->setContent($comment ?? ''); // Si commentaire vide, simple retweet
+        $retweet->setCreatedAt(new \DateTime());
+        $retweet->setAuthor($user);
+        $retweet->setParent($originalPost);
+
+        // Pour afficher plus facilement, on pourrait dupliquer les médias de l'original si tu veux (ici non)
+        $entityManager->persist($retweet);
+        $entityManager->flush();
+
+        return new JsonResponse([
+            'message' => $comment ? 'Post retweeted with comment' : 'Post retweeted successfully',
+            'retweetId' => $retweet->getId(),
+        ], JsonResponse::HTTP_CREATED);
     }
 }

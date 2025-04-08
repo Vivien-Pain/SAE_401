@@ -363,4 +363,71 @@ class ProfileController extends AbstractController
 
         return new JsonResponse(['message' => 'Désabonnement réussi.']);
     }
+
+    #[Route('/api/profile/{username}/edit', name: 'api_edit_profile', methods: ['PUT'])]
+    public function editProfile(
+        string $username,
+        Request $request,
+        EntityManagerInterface $entityManager
+    ): JsonResponse {
+        // 1. Check the token and the current user
+        $token = $request->headers->get('Authorization');
+        $token = str_replace('Bearer ', '', $token);
+
+        if (!$token) {
+            return new JsonResponse(['message' => 'Token manquant'], 401);
+        }
+
+        $currentUser = $entityManager->getRepository(User::class)->findOneBy(['apiToken' => $token]);
+        if (!$currentUser) {
+            return new JsonResponse(['message' => 'Utilisateur non authentifié'], 401);
+        }
+
+        // 2. Check that the current user *is* the one whose profile is being edited
+        //    or check if you allow admins, etc. For now, we’ll assume the user can only
+        //    edit *their own* profile.
+        if ($currentUser->getUsername() !== $username) {
+            return new JsonResponse(['message' => 'Accès non autorisé'], 403);
+        }
+
+        // 3. Decode the JSON body
+        $data = json_decode($request->getContent(), true);
+        if (!$data) {
+            return new JsonResponse(['message' => 'Données invalides'], 400);
+        }
+
+        // 4. Update fields on the User entity
+        //    For example, if in your `User` entity you have `setBio()`, `setProfilePicture()`, etc.
+        if (isset($data['bio'])) {
+            $currentUser->setBio($data['bio']);
+        }
+        if (isset($data['profilePicture'])) {
+            $currentUser->setProfilePicture($data['profilePicture']);
+        }
+        if (isset($data['banner'])) {
+            $currentUser->setBanner($data['banner']);
+        }
+        if (isset($data['location'])) {
+            $currentUser->setLocation($data['location']);
+        }
+        if (isset($data['website'])) {
+            $currentUser->setWebsite($data['website']);
+        }
+
+        // 5. Persist and flush
+        $entityManager->persist($currentUser);
+        $entityManager->flush();
+
+        // 6. Return the updated user in JSON
+        return $this->json([
+            'id' => $currentUser->getId(),
+            'username' => $currentUser->getUsername(),
+            'bio' => $currentUser->getBio(),
+            'profilePicture' => $currentUser->getProfilePicture(),
+            'banner' => $currentUser->getBanner(),
+            'location' => $currentUser->getLocation(),
+            'website' => $currentUser->getWebsite(),
+            'readOnlyMode' => $currentUser->isReadOnlyMode(),
+        ]);
+    }
 }

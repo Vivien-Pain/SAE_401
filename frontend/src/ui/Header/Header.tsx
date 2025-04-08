@@ -1,22 +1,45 @@
+// Header.tsx
+import React from "react";
+import {
+  headerContainer,
+  svgContainer,
+  textContainer,
+  welcomeText,
+  usernameText,
+} from "./HeaderStyles";
+import Icons_Profiles from "../Icons/Icons_Logo"; // Import du composant
+
 interface HeaderProps {
   username: string;
 }
 
 const Header: React.FC<HeaderProps> = ({ username }) => {
- 
-
   return (
-    <div className="flex flex-col items-center w-full border-b border-gray-300 bg-white">
-      <div className="flex w-full justify-center py-3">
-        <h2 className="text-lg font-semibold pb-2 text-black">Pour vous</h2>
+    <div
+      // Par défaut : borderColor = "teal"
+      // On peut néanmoins surcharger la variable : 
+      // className={headerContainer({ borderColor: "gray" })}
+      className={headerContainer()}
+    >
+      <div className={svgContainer()}>
+        {/* Utilisation du composant Icons_Profiles */}
+        <Icons_Profiles />
       </div>
 
-      <div className="relative w-full flex justify-center mt-2">
-        <div className="h-1 w-16 bg-black"></div>
-      </div>
-
-      <div className="mt-4">
-        <p className="text-sm text-gray-600">Bienvenue, {username || "Chargement..."}!</p>
+      <div className={textContainer()}>
+        {/* Pour changer la couleur du texte principal, on peut faire :
+            className={welcomeText({ highlightColor: "teal" })} 
+        */}
+        <p className={welcomeText()}>
+          Bienvenue,{" "}
+          {/* Pour changer la couleur du nom d'utilisateur, on peut faire :
+              <span className={usernameText({ color: "teal" })}>...</span>
+          */}
+          <span className={usernameText()}>
+            {username || "Chargement..."}
+          </span>{" "}
+          !
+        </p>
       </div>
     </div>
   );
