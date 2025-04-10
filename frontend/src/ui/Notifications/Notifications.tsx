@@ -39,14 +39,37 @@ export default function NotificationBell() {
     setIsDropdownOpen((prev) => !prev);
   };
 
+  const respondFollowRequest = async (id: number, accept: boolean) => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    try {
+      const res = await fetch(
+        `http://localhost:8080/api/follow_requests/${id}/respond`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ accept }),
+        }
+      );
+
+      if (res.ok) {
+        setNotifications((prev) => prev.filter((n) => n.id !== id));
+      }
+    } catch (error) {
+      console.error("Erreur validation demande de suivi:", error);
+    }
+  };
+
   return (
     <div className="relative">
-      {/* Icône cloche (remplace ici par ton SVG custom) */}
       <button
         onClick={toggleDropdown}
         className="relative w-8 h-8 flex items-center justify-center"
       >
-        {/* --- SVG cloche personnalisé à mettre ici --- */}
         <svg
           xmlns="http://www.w3.org/2000/svg"
           className="w-6 h-6 text-gray-700"
@@ -62,7 +85,6 @@ export default function NotificationBell() {
           />
         </svg>
 
-        {/* Badge pour nombre de notifications non lues */}
         {unreadCount > 0 && (
           <span className="absolute top-0 right-0 inline-flex items-center justify-center px-1 py-0.5 text-xs font-bold leading-none text-white bg-red-600 rounded-full">
             {unreadCount}
@@ -70,7 +92,6 @@ export default function NotificationBell() {
         )}
       </button>
 
-      {/* Dropdown notifications */}
       {isDropdownOpen && (
         <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
           <div className="p-4 font-semibold text-gray-700 border-b">
@@ -84,18 +105,29 @@ export default function NotificationBell() {
               key={notif.id}
               className="p-4 hover:bg-gray-100 cursor-pointer border-b last:border-b-0"
             >
-              <p className="text-sm">
-                {notif.type === "like" &&
-                  `${notif.senderUsername} a aimé votre post`}
-                {notif.type === "retweet" &&
-                  `${notif.senderUsername} a retweeté votre post`}
-                {notif.type === "reply" &&
-                  `${notif.senderUsername} a répondu à votre post`}
-                {notif.type === "follow" &&
-                  `${notif.senderUsername} vous suit maintenant`}
-                {notif.type === "mention" &&
-                  `${notif.senderUsername} vous a mentionné`}
-              </p>
+              {notif.type === "follow_request" ? (
+                <div className="flex justify-between items-center">
+                  <p className="text-sm">
+                    {notif.senderUsername} a demandé à vous suivre.
+                  </p>
+                  <div className="flex gap-2 mt-1">
+                    <button
+                      onClick={() => respondFollowRequest(notif.id, true)}
+                      className="text-green-500 font-bold"
+                    >
+                      Accepter
+                    </button>
+                    <button
+                      onClick={() => respondFollowRequest(notif.id, false)}
+                      className="text-red-500 font-bold"
+                    >
+                      Refuser
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm">{notif.type}</p>
+              )}
               <p className="text-xs text-gray-400 mt-1">
                 {new Date(notif.createdAt).toLocaleString()}
               </p>

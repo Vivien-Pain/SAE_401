@@ -29,6 +29,7 @@ interface UserProfile {
   posts: PostType[];
   pinnedPost: PostType | null;
   readOnlyMode: boolean;
+  isPrivate: boolean; // AJOUT ICI
 }
 
 export default function ProfilePage() {
@@ -147,6 +148,24 @@ export default function ProfilePage() {
     }
   };
 
+  const handleFollowRequest = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    try {
+      await fetch(
+        `http://localhost:8080/api/profile/${profile!.username}/follow`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      alert("Demande de suivi envoyée.");
+    } catch (error) {
+      console.error("Erreur demande de suivi:", error);
+    }
+  };
+
   if (!profile) {
     return <p className="text-center mt-8">Chargement...</p>;
   }
@@ -202,6 +221,15 @@ export default function ProfilePage() {
               />
             </div>
           </div>
+
+          {/* Bouton "Demander abonnement" */}
+          {profile.isPrivate && currentUser?.username !== profile.username && (
+            <div className="mt-4">
+              <Button onClick={handleFollowRequest} variant="blue">
+                Demander abonnement
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Post épinglé */}
@@ -226,7 +254,11 @@ export default function ProfilePage() {
         <div className="mt-8">
           <h2 className="text-xl font-semibold mb-4 ml-4">Posts</h2>
           <div className="space-y-6 px-4">
-            {profile.posts.length === 0 ? (
+            {profile.isPrivate && currentUser?.username !== profile.username ? (
+              <p className="text-center text-gray-500 mt-6">
+                🔒 Ce compte est privé. Abonnez-vous pour voir les publications.
+              </p>
+            ) : profile.posts.length === 0 ? (
               <p className="text-gray-400">Aucun post trouvé.</p>
             ) : (
               profile.posts.map((post) => (
@@ -256,6 +288,7 @@ export default function ProfilePage() {
                     </>
                   ) : (
                     <>
+                      {/* Ton composant Post */}
                       <Post
                         content={post.content}
                         created_at={post.created_at}

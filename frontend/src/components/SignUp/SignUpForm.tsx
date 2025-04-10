@@ -9,6 +9,7 @@ const SignUp = ({ onSwitchToLogin }: { onSwitchToLogin: () => void }) => {
   const [passwordStrength, setPasswordStrength] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [passwordErrors, setPasswordErrors] = useState<string[]>([]);
+  const Base_url = process.env.VITE_BASE_URL;
 
   const validatePassword = (password: string) => {
     const errors: string[] = [];

@@ -26,6 +26,9 @@ export default function ProfileActions({
   const [isBlocked, setIsBlocked] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [localIsPrivate, setLocalIsPrivate] = useState<boolean>(
+    !!profile.isPrivate
+  );
 
   useEffect(() => {
     setFormData({
@@ -35,6 +38,7 @@ export default function ProfileActions({
       location: profile.location || "",
       website: profile.website || "",
     });
+    setLocalIsPrivate(profile.isPrivate); // ✅ Mettre à jour localIsPrivate quand profile change
   }, [profile]);
 
   useEffect(() => {
@@ -155,6 +159,31 @@ export default function ProfileActions({
     }
   };
 
+  const handleTogglePrivateProfile = async () => {
+    const token = localStorage.getItem("token");
+    if (!token || !profile) return;
+
+    try {
+      const response = await fetch(
+        `http://localhost:8080/api/profile/${username}/edit`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ isPrivate: !localIsPrivate }), // ✅ on utilise local
+        }
+      );
+      if (!response.ok) throw new Error();
+      await response.json();
+      setLocalIsPrivate((prev) => !prev); // ✅ on inverse l'état local directement
+      refreshProfile();
+    } catch (error) {
+      console.error("Erreur bascule mode privé:", error);
+    }
+  };
+
   const handleToggleCommentPrivacy = async () => {
     const token = localStorage.getItem("token");
     if (!token || !profile) return;
@@ -187,11 +216,10 @@ export default function ProfileActions({
 
   return (
     <>
-      {/* Menu d'action */}
       <div className="flex justify-end relative">
         <button onClick={toggleMenu} className="w-6 h-6 text-gray-600">
           {isMenuOpen ? (
-            <span className="text-xl font-bold">×</span> // Croix
+            <span className="text-xl font-bold">×</span>
           ) : (
             <Icons_Parametres />
           )}
@@ -218,6 +246,13 @@ export default function ProfileActions({
                     ? "Autoriser tous les commentaires"
                     : "Limiter aux abonnés"}
                 </Button>
+
+                {/* BOUTON MODE PRIVÉ */}
+                <Button onClick={handleTogglePrivateProfile} variant="blue">
+                  {localIsPrivate
+                    ? "Désactiver Mode Privé"
+                    : "Activer Mode Privé"}
+                </Button>
               </>
             ) : (
               <>
@@ -236,7 +271,7 @@ export default function ProfileActions({
         )}
       </div>
 
-      {/* Formulaire de modification du profil */}
+      {/* Formulaire modification profil */}
       {isEditingProfile && (
         <div className="flex flex-col space-y-2 mt-4 bg-white p-4 rounded-lg shadow">
           <input

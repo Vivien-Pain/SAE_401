@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Hôte : sae-mysql
--- Généré le : lun. 07 avr. 2025 à 08:33
+-- Généré le : mer. 09 avr. 2025 à 07:08
 -- Version du serveur : 8.4.4
 -- Version de PHP : 8.2.27
 
@@ -66,7 +66,36 @@ INSERT INTO `doctrine_migration_versions` (`version`, `executed_at`, `execution_
 ('DoctrineMigrations\\Version20250403085257', '2025-04-03 08:53:18', 264),
 ('DoctrineMigrations\\Version20250403124811', '2025-04-03 12:48:18', 46),
 ('DoctrineMigrations\\Version20250404115934', '2025-04-04 11:59:46', 46),
-('DoctrineMigrations\\Version20250407071818', '2025-04-07 07:18:25', 45);
+('DoctrineMigrations\\Version20250407071818', '2025-04-07 07:18:25', 45),
+('DoctrineMigrations\\Version20250408073857', '2025-04-08 07:39:04', 38),
+('DoctrineMigrations\\Version20250408074652', '2025-04-08 07:46:58', 61),
+('DoctrineMigrations\\Version20250408085808', '2025-04-08 08:58:15', 48),
+('DoctrineMigrations\\Version20250408131054', '2025-04-08 13:11:09', 54),
+('DoctrineMigrations\\Version20250408140001', '2025-04-08 14:00:07', 169);
+
+-- --------------------------------------------------------
+
+--
+-- Structure de la table `notification`
+--
+
+CREATE TABLE `notification` (
+  `id` int NOT NULL,
+  `recipient_id` int NOT NULL,
+  `sender_id` int DEFAULT NULL,
+  `type` varchar(50) COLLATE utf8mb3_unicode_ci NOT NULL,
+  `post_id` int DEFAULT NULL,
+  `is_read` tinyint(1) NOT NULL,
+  `created_at` datetime NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
+
+--
+-- Déchargement des données de la table `notification`
+--
+
+INSERT INTO `notification` (`id`, `recipient_id`, `sender_id`, `type`, `post_id`, `is_read`, `created_at`) VALUES
+(1, 2, 14, 'like', 79, 0, '2025-04-08 14:32:24'),
+(2, 2, 14, 'like', 72, 0, '2025-04-08 14:32:27');
 
 -- --------------------------------------------------------
 
@@ -82,30 +111,35 @@ CREATE TABLE `post` (
   `media` json DEFAULT NULL,
   `parent_id` int DEFAULT NULL,
   `is_censored` tinyint(1) NOT NULL,
-  `is_pinned` tinyint(1) NOT NULL
+  `is_pinned` tinyint(1) NOT NULL,
+  `is_locked` tinyint(1) NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
 
 --
 -- Déchargement des données de la table `post`
 --
 
-INSERT INTO `post` (`id`, `content`, `created_at`, `author_id`, `media`, `parent_id`, `is_censored`, `is_pinned`) VALUES
-(2, 'Deuxième post avec du contenu intéressant.', '2025-03-19 07:21:20', 2, NULL, NULL, 0, 0),
-(3, 'Un autre post pour remplir la base de données.', '2025-03-19 07:21:20', 2, NULL, NULL, 0, 0),
-(4, 'Encore un post pour tester le fil d\'actualité.', '2025-03-19 07:21:20', 2, NULL, NULL, 0, 0),
-(5, 'Dernier post d\'exemple pour le moment.', '2025-03-19 07:21:20', 2, NULL, NULL, 0, 0),
-(7, 'Maud Je t\'aime <3', '2025-03-20 13:52:39', 2, NULL, NULL, 0, 0),
-(8, 'Scroll non ?', '2025-03-20 14:14:31', 2, NULL, NULL, 0, 0),
-(14, 'blabla', '2025-03-24 10:47:15', 2, '[]', NULL, 0, 0),
-(18, 'Post pour le post qui psot', '2025-03-24 10:47:15', 2, '[]', NULL, 0, 0),
-(19, 'Je vais essayer un nouveau sport ce mois-ci. Qui est partant pour un match de tennis ? ', '2025-03-24 10:47:15', 2, NULL, NULL, 0, 0),
-(20, 'Les nouvelles tendances en design graphique sont vraiment intéressantes cette année. J\'ai hâte de voir où cela va nous mener.', '2025-03-24 10:47:15', 2, NULL, NULL, 0, 0),
-(21, 'L\'intelligence artificielle est un sujet fascinant. Comment pensez-vous que cela va impacter nos vies ?', '2025-03-24 10:47:15', 2, NULL, NULL, 0, 0),
-(39, 'Fleur !', '2025-04-01 08:49:49', 14, NULL, NULL, 0, 0),
-(40, 'Rose !', '2025-04-01 08:50:37', 14, NULL, NULL, 0, 0),
-(41, 'a', '2025-04-01 08:51:02', 14, NULL, NULL, 1, 0),
-(52, 'Mustang !', '2025-04-02 12:21:15', 2, '[\"/uploads/media/67ed2bbb251f1.jpg\"]', NULL, 0, 1),
-(72, '#JesuisBrad', '2025-04-07 08:13:08', 2, '[]', NULL, 0, 0);
+INSERT INTO `post` (`id`, `content`, `created_at`, `author_id`, `media`, `parent_id`, `is_censored`, `is_pinned`, `is_locked`) VALUES
+(2, 'Deuxième post avec du contenu intéressant.', '2025-03-19 07:21:20', 2, NULL, NULL, 0, 0, 0),
+(3, 'Un autre post pour remplir la base de données.', '2025-03-19 07:21:20', 2, NULL, NULL, 0, 0, 0),
+(4, 'Encore un post pour tester le fil d\'actualité.', '2025-03-19 07:21:20', 2, NULL, NULL, 0, 0, 0),
+(5, 'Dernier post d\'exemple pour le moment.', '2025-03-19 07:21:20', 2, NULL, NULL, 0, 0, 0),
+(7, 'Maud Je t\'aime <3', '2025-03-20 13:52:39', 2, NULL, NULL, 0, 0, 0),
+(8, 'Scroll non ?!', '2025-03-20 14:14:31', 2, NULL, NULL, 0, 0, 0),
+(14, 'blabla', '2025-03-24 10:47:15', 2, '[]', NULL, 0, 0, 0),
+(18, 'Post pour le post qui psot', '2025-03-24 10:47:15', 2, '[]', NULL, 0, 0, 0),
+(19, 'Je vais essayer un nouveau sport ce mois-ci. Qui est partant pour un match de tennis ? ', '2025-03-24 10:47:15', 2, NULL, NULL, 0, 0, 0),
+(20, 'Les nouvelles tendances en design graphique sont vraiment intéressantes cette année. J\'ai hâte de voir où cela va nous mener.', '2025-03-24 10:47:15', 2, NULL, NULL, 0, 0, 0),
+(21, 'L\'intelligence artificielle est un sujet fascinant. Comment pensez-vous que cela va impacter nos vies ?', '2025-03-24 10:47:15', 2, NULL, NULL, 0, 0, 0),
+(39, 'Fleur !', '2025-04-01 08:49:49', 14, NULL, NULL, 0, 0, 0),
+(40, 'Rose !', '2025-04-01 08:50:37', 14, NULL, NULL, 0, 0, 0),
+(41, 'a', '2025-04-01 08:51:02', 14, NULL, NULL, 1, 0, 0),
+(52, 'Mustang !', '2025-04-02 12:21:15', 2, '[\"/uploads/media/67ed2bbb251f1.jpg\"]', NULL, 0, 0, 1),
+(72, '#JesuisBrad', '2025-04-07 08:13:08', 2, '[]', NULL, 0, 1, 0),
+(79, 'Je suis d\'accord ! ', '2025-04-08 07:10:01', 2, '[]', 40, 0, 0, 0),
+(86, 'Nous somme la meilleur équipes ', '2025-04-08 08:52:37', 15, '[]', NULL, 0, 0, 0),
+(87, 'Dralii, Vatira, Atow on rouler sur le major de RL ', '2025-04-08 08:53:17', 15, '[]', NULL, 0, 0, 0),
+(89, 'lest go !', '2025-04-08 09:28:16', 2, '[]', 87, 0, 0, 0);
 
 -- --------------------------------------------------------
 
@@ -126,8 +160,13 @@ INSERT INTO `post_likes` (`post_id`, `user_id`) VALUES
 (7, 2),
 (18, 2),
 (19, 2),
+(40, 2),
 (52, 2),
-(52, 14);
+(52, 14),
+(72, 2),
+(72, 14),
+(79, 14),
+(89, 14);
 
 -- --------------------------------------------------------
 
@@ -138,8 +177,18 @@ INSERT INTO `post_likes` (`post_id`, `user_id`) VALUES
 CREATE TABLE `subscription` (
   `id` int NOT NULL,
   `follower_id` int NOT NULL,
-  `followed_id` int NOT NULL
+  `followed_id` int NOT NULL,
+  `is_approved` tinyint(1) NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
+
+--
+-- Déchargement des données de la table `subscription`
+--
+
+INSERT INTO `subscription` (`id`, `follower_id`, `followed_id`, `is_approved`) VALUES
+(37, 12, 2, 0),
+(38, 14, 2, 0),
+(39, 2, 12, 0);
 
 -- --------------------------------------------------------
 
@@ -160,18 +209,21 @@ CREATE TABLE `user` (
   `location` varchar(255) COLLATE utf8mb3_unicode_ci DEFAULT NULL,
   `website` varchar(255) COLLATE utf8mb3_unicode_ci DEFAULT NULL,
   `is_blocked` tinyint(1) NOT NULL,
-  `read_only_mode` tinyint(1) NOT NULL DEFAULT '0'
+  `read_only_mode` tinyint(1) NOT NULL DEFAULT '0',
+  `is_private` tinyint(1) NOT NULL DEFAULT '0',
+  `only_followers_can_comment` tinyint(1) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
 
 --
 -- Déchargement des données de la table `user`
 --
 
-INSERT INTO `user` (`id`, `username`, `email`, `password`, `api_token`, `roles`, `bio`, `profile_picture`, `banner`, `location`, `website`, `is_blocked`, `read_only_mode`) VALUES
-(2, 'Vivien', 'vivienpain@gmail.com', '$2y$12$9l7V2ud/2hfsaiD2dUzvTuj6HJ.t2NPrrr5pyBePS5MYldd3Fzrea', '00ddaf6aa2ca649d62c78f76f56d5aca729ce470610d3b90d45cc5c5c5ee2a0f', 'admin', 'Bonjour je suis Vivien Pain !', 'https://moto.honda.fr/content/dam/central/motorcycles/Homepage/25ym/25ym_cb1000_hornet_homepage_1280x1280.jpg/_jcr_content/renditions/m_r.jpg', 'https://cdn.pixabay.com/photo/2021/09/12/07/58/banner-6617550_1280.png', 'Limoges 1', 'http://localhost:8090/api/profile/Vivien', 0, 0),
-(12, 'Lucas', 'lucasetvivien@hotmail.fr', '$2y$12$mY3Q3yzK0P.2Z7qxfhzwjuaE02mrp4m.6MjuUnOXzsFerFUBc/FmG', 'fb1c5d68fe28a29a1480c62cb56c575921d0aac637b1edf42017dceb23561860', '', NULL, NULL, NULL, NULL, NULL, 0, 0),
-(13, 'Test', 'Test@gmail.com', '$2y$12$IDRLnAXBk7YIXNxsP1YuPuhWOMhSq0jwwOCvYY4/5oAQECifZyQRe', '6b61385744987b1151a630510aed75e81302c5a695d2cce8f5d82dc30c0a3af0', '', NULL, NULL, NULL, NULL, NULL, 0, 0),
-(14, 'Maud', 'maud.raux4@gmail.com', '$2y$12$eWszFFKv4KvuSB1ldLxjJOhCSBe/bpqsdNboqhMoVk9LGvkpO/z56', '3205005aa565e0b05bd73c78e1bdbb261fd78333b0315ff5967fd7f7da68468a', 'admin', 'Fleur', 'https://cdn.jacques-briant.fr/1066/pivoine-sarah-bernhardt.jpg', 'https://img.freepik.com/photos-premium/banniere-texture-pivoines-delicates-roses-fond-romantique-fond_464863-987.jpg', NULL, NULL, 0, 0);
+INSERT INTO `user` (`id`, `username`, `email`, `password`, `api_token`, `roles`, `bio`, `profile_picture`, `banner`, `location`, `website`, `is_blocked`, `read_only_mode`, `is_private`, `only_followers_can_comment`) VALUES
+(2, 'Vivien', 'vivienpain@gmail.com', '$2y$12$9l7V2ud/2hfsaiD2dUzvTuj6HJ.t2NPrrr5pyBePS5MYldd3Fzrea', '6d574baeb9d40249fb66e13117103861016f5d0494e342233696a48e4589e734', 'admin', 'Bonjour je suis Vivien Pain ', 'https://moto.honda.fr/content/dam/central/motorcycles/Homepage/25ym/25ym_cb1000_hornet_homepage_1280x1280.jpg/_jcr_content/renditions/m_r.jpg', 'https://catch-news.com/images/2025/02/28/wwe-change-plans-smackdown-28-fevrier-2025.jpg', 'Limoges ', 'http://localhost:8090/api/profile/Vivien', 0, 0, 0, 0),
+(12, 'Lucas', 'lucasetvivien@hotmail.fr', '$2y$12$mY3Q3yzK0P.2Z7qxfhzwjuaE02mrp4m.6MjuUnOXzsFerFUBc/FmG', 'b57a2d3cc244ea16947008afd1f4dae48f1d152bbc4c150ca5397071d0c4b125', '', NULL, NULL, NULL, NULL, NULL, 0, 0, 1, 0),
+(13, 'Test', 'Test@gmail.com', '$2y$12$IDRLnAXBk7YIXNxsP1YuPuhWOMhSq0jwwOCvYY4/5oAQECifZyQRe', 'd7992426d53be04e062b27661ba55b9e08587c14d9a512605c5905c4719a1cff', '', NULL, NULL, NULL, NULL, NULL, 0, 0, 0, 0),
+(14, 'Maud', 'maud.raux4@gmail.com', '$2y$12$eWszFFKv4KvuSB1ldLxjJOhCSBe/bpqsdNboqhMoVk9LGvkpO/z56', '628c3332fc3e7ed146a3c14920fd238af84968e79648a729137f44b4ce6667ce', 'admin', 'Fleur', 'https://cdn.jacques-briant.fr/1066/pivoine-sarah-bernhardt.jpg', 'https://img.freepik.com/photos-premium/banniere-texture-pivoines-delicates-roses-fond-romantique-fond_464863-987.jpg', NULL, NULL, 0, 0, 0, 0),
+(15, 'Karmine', 'KarmineGoat@gmail.com', '$2y$12$r1oHo6KwyqkEkSznRyXAVOmKen559jYOA0OiQr6l51w1UEStPRKpG', 'a2e7b29f08b73b93fa1422b6bc9f2559d36b43444b79624b916bf6a30191f739', '', 'On a tout gagner', 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTJJPeEc_cVOYZDztexD7Q6w9LHGG4mvDSoyQ&s', 'https://pbs.twimg.com/media/FJZzMxGXsAAmSRE.jpg:large', 'Karmine', 'https://www.karminecorp.fr/', 0, 0, 0, 0);
 
 --
 -- Index pour les tables déchargées
@@ -190,6 +242,14 @@ ALTER TABLE `block`
 --
 ALTER TABLE `doctrine_migration_versions`
   ADD PRIMARY KEY (`version`);
+
+--
+-- Index pour la table `notification`
+--
+ALTER TABLE `notification`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `IDX_BF5476CAE92F8F78` (`recipient_id`),
+  ADD KEY `IDX_BF5476CAF624B39D` (`sender_id`);
 
 --
 -- Index pour la table `post`
@@ -235,22 +295,28 @@ ALTER TABLE `block`
   MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
+-- AUTO_INCREMENT pour la table `notification`
+--
+ALTER TABLE `notification`
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+
+--
 -- AUTO_INCREMENT pour la table `post`
 --
 ALTER TABLE `post`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=75;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=95;
 
 --
 -- AUTO_INCREMENT pour la table `subscription`
 --
 ALTER TABLE `subscription`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=37;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=40;
 
 --
 -- AUTO_INCREMENT pour la table `user`
 --
 ALTER TABLE `user`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
 
 --
 -- Contraintes pour les tables déchargées
@@ -262,6 +328,13 @@ ALTER TABLE `user`
 ALTER TABLE `block`
   ADD CONSTRAINT `FK_831B972221FF5136` FOREIGN KEY (`blocked_id`) REFERENCES `user` (`id`),
   ADD CONSTRAINT `FK_831B9722548D5975` FOREIGN KEY (`blocker_id`) REFERENCES `user` (`id`);
+
+--
+-- Contraintes pour la table `notification`
+--
+ALTER TABLE `notification`
+  ADD CONSTRAINT `FK_BF5476CAE92F8F78` FOREIGN KEY (`recipient_id`) REFERENCES `user` (`id`),
+  ADD CONSTRAINT `FK_BF5476CAF624B39D` FOREIGN KEY (`sender_id`) REFERENCES `user` (`id`);
 
 --
 -- Contraintes pour la table `post`

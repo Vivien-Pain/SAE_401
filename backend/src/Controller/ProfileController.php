@@ -12,6 +12,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
 use App\Entity\Subscription;
+use App\Entity\FollowRequest;
 
 class ProfileController extends AbstractController
 {
@@ -71,6 +72,8 @@ class ProfileController extends AbstractController
                     'authorUsername' => $post->getAuthor()->getUsername(),
                     'media' => $post->getMedia() ?? [],
                     'isPinned' => $post->isPinned(),
+
+
                 ];
             }, $posts);
 
@@ -83,6 +86,8 @@ class ProfileController extends AbstractController
                 'location' => $user->getLocation(),
                 'website' => $user->getWebsite(),
                 'readOnlyMode' => $user->isReadOnlyMode(),
+                'isPrivate' => $user->isPrivate(), // ✅ AJOUTE cette ligne ici
+                'isOnlyFollower' => $user->isOnlyFollowersCanComment(),
                 'posts' => $postsData,
                 'pinnedPost' => $pinnedPost ? [
                     'id' => $pinnedPost->getId(),
@@ -302,6 +307,7 @@ class ProfileController extends AbstractController
     {
         $token = $request->headers->get('Authorization');
         $token = str_replace('Bearer ', '', $token);
+
         if (!$token) {
             return new JsonResponse(['message' => 'Token manquant'], 401);
         }
@@ -317,23 +323,27 @@ class ProfileController extends AbstractController
             return new JsonResponse(['message' => 'Vous ne pouvez pas vous suivre vous-même.'], 400);
         }
 
-        $existingSubscription = $entityManager->getRepository(Subscription::class)
-            ->findOneBy(['follower' => $currentUser, 'followed' => $userToFollow]);
+        if ($userToFollow->isPrivate()) {
+            // Création d'une demande de suivi
+            $followRequest = new FollowRequest();
+            $followRequest->setRequester($currentUser);
+            $followRequest->setRequested($userToFollow);
+            $entityManager->persist($followRequest);
+            $entityManager->flush();
 
-        if ($existingSubscription) {
-            return new JsonResponse(['message' => 'Déjà abonné.'], 400);
+            return new JsonResponse(['message' => 'Demande de suivi envoyée.']);
+        } else {
+            // Comportement normal
+            $subscription = new Subscription();
+            $subscription->setFollower($currentUser);
+            $subscription->setFollowed($userToFollow);
+
+            $entityManager->persist($subscription);
+            $entityManager->flush();
+
+            return new JsonResponse(['message' => 'Utilisateur suivi avec succès.']);
         }
-
-        $subscription = new Subscription();
-        $subscription->setFollower($currentUser);
-        $subscription->setFollowed($userToFollow);
-
-        $entityManager->persist($subscription);
-        $entityManager->flush();
-
-        return new JsonResponse(['message' => 'Utilisateur suivi avec succès.']);
     }
-
     #[Route('/api/profile/{username}/unfollow', name: 'api_unfollow_user', methods: ['DELETE'])]
     public function unfollowUser(string $username, Request $request, EntityManagerInterface $entityManager): JsonResponse
     {
@@ -409,6 +419,12 @@ class ProfileController extends AbstractController
         if (isset($data['website'])) {
             $currentUser->setWebsite($data['website']);
         }
+        if (isset($data['readOnlyMode'])) {
+            $currentUser->setReadOnlyMode($data['readOnlyMode']);
+        }
+        if (array_key_exists('isPrivate', $data)) {
+            $currentUser->setIsPrivate($data['isPrivate']);
+        }
 
         // 5. Persist and flush
         $entityManager->persist($currentUser);
@@ -424,6 +440,80 @@ class ProfileController extends AbstractController
             'location' => $currentUser->getLocation(),
             'website' => $currentUser->getWebsite(),
             'readOnlyMode' => $currentUser->isReadOnlyMode(),
+            'isPrivate' => $currentUser->isPrivate(),
         ]);
+    }
+
+    #[Route('/api/follow_requests/{id}/respond', name: 'api_respond_follow_request', methods: ['POST'])]
+    public function respondFollowRequest(int $id, Request $request, EntityManagerInterface $entityManager): JsonResponse
+    {
+        $token = $request->headers->get('Authorization');
+        $token = str_replace('Bearer ', '', $token);
+
+        $currentUser = $entityManager->getRepository(User::class)->findOneBy(['apiToken' => $token]);
+        if (!$currentUser) {
+            return new JsonResponse(['message' => 'Utilisateur non authentifié'], 401);
+        }
+
+        $followRequest = $entityManager->getRepository(FollowRequest::class)->find($id);
+        if (!$followRequest || $followRequest->getRequested() !== $currentUser) {
+            return new JsonResponse(['message' => 'Demande non trouvée'], 404);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        $accept = $data['accept'] ?? false;
+
+        if ($accept) {
+            // ⚠️ VÉRIFIER s'il existe déjà une subscription avant de créer
+            $existingSub = $entityManager->getRepository(Subscription::class)->findOneBy([
+                'follower' => $followRequest->getRequester(),
+                'followed' => $currentUser,
+            ]);
+
+            if (!$existingSub) {
+                $subscription = new Subscription();
+                $subscription->setFollower($followRequest->getRequester());
+                $subscription->setFollowed($currentUser);
+                $entityManager->persist($subscription);
+            }
+        }
+
+        $entityManager->remove($followRequest);
+        $entityManager->flush();
+
+        return new JsonResponse(['message' => $accept ? 'Demande acceptée.' : 'Demande refusée.']);
+    }
+
+    #[Route('/api/notifications', name: 'api_notifications', methods: ['GET'])]
+    public function getNotifications(Request $request, EntityManagerInterface $entityManager): JsonResponse
+    {
+        $token = $request->headers->get('Authorization');
+        $token = str_replace('Bearer ', '', $token);
+
+        if (!$token) {
+            return new JsonResponse(['message' => 'Token manquant'], 401);
+        }
+
+        $currentUser = $entityManager->getRepository(\App\Entity\User::class)->findOneBy(['apiToken' => $token]);
+        if (!$currentUser) {
+            return new JsonResponse(['message' => 'Utilisateur non authentifié'], 401);
+        }
+
+        $followRequests = $entityManager->getRepository(FollowRequest::class)->findPendingRequestsForUser($currentUser->getId());
+
+        $notifications = [];
+
+        foreach ($followRequests as $request) {
+            $notifications[] = [
+                'id' => $request->getId(),
+                'type' => 'follow_request',
+                'senderUsername' => $request->getRequester()->getUsername(),
+                'postId' => null,
+                'isRead' => false, // optionnel ici, car c’est une notification "événement"
+                'createdAt' => $request->getCreatedAt()->format('Y-m-d H:i:s'),
+            ];
+        }
+
+        return $this->json($notifications);
     }
 }
